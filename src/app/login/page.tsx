@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMe } from "@/lib/useMe";
 
 export default function LoginPage() {
+  const me = useMe();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [next, setNext] = useState("/");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const n = params.get("next");
+    if (n && n.startsWith("/") && !n.startsWith("//")) setNext(n);
+    if (params.get("error")) setError(params.get("error")!);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,28 +28,47 @@ export default function LoginPage() {
     });
     setBusy(false);
     if (!res.ok) return setError("That password didn't work.");
-    const next = new URLSearchParams(window.location.search).get("next");
-    window.location.href = next && next.startsWith("/") ? next : "/";
+    window.location.href = next;
   }
 
   return (
-    <main className="min-h-screen grid place-items-center p-4">
-      <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-semibold">Bilingual Lyrics</h1>
-        <p className="text-sm text-muted">Enter the team password to continue.</p>
-        <input
-          type="password"
-          autoFocus
-          className="input"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Team password"
-        />
+    <main className="grid min-h-screen place-items-center p-4">
+      <div className="card w-full max-w-sm space-y-5">
+        <div className="space-y-1">
+          <div className="text-xs font-semibold uppercase tracking-widest text-muted">Bilingual Lyrics</div>
+          <h1 className="text-xl font-semibold">Sign in to your team&apos;s songs</h1>
+        </div>
+        {me === null && <p className="text-sm text-muted">Loading…</p>}
+        {me?.mode === "pco" && (
+          <>
+            <p className="text-sm text-muted">Use the same login you already use for Planning Center.</p>
+            <a href={`/api/auth/login?next=${encodeURIComponent(next)}`} className="btn btn-primary min-h-11 w-full text-base">
+              Sign in with Planning Center
+            </a>
+            <p className="text-xs text-muted">
+              First time? You&apos;ll start as a Viewer until a team admin gives you more access.
+            </p>
+          </>
+        )}
+        {me?.mode === "password" && (
+          <form onSubmit={submit} className="space-y-4">
+            <p className="text-sm text-muted">Enter the team password to continue.</p>
+            <input
+              type="password"
+              autoFocus
+              aria-label="Team password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Team password"
+            />
+            <button className="btn btn-primary w-full" disabled={busy || !password}>
+              {busy ? "Checking…" : "Sign in"}
+            </button>
+          </form>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button className="btn btn-primary w-full" disabled={busy || !password}>
-          {busy ? "Checking…" : "Sign in"}
-        </button>
-      </form>
+      </div>
     </main>
   );
 }

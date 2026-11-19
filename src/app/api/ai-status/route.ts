@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import { NextResponse } from "next/server";
 import { anthropic, MODEL } from "@/lib/anthropic";
 import { AI_PROVIDER, GEMINI_MODEL, gemini } from "@/lib/gemini";
@@ -9,7 +10,9 @@ export const dynamic = "force-dynamic";
  * Shows which AI service the site uses and checks its key with one free request,
  * without revealing the key. Signed-in users only (see middleware).
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const allowed = await requireRole(req, "admin");
+  if (allowed instanceof NextResponse) return allowed;
   if (AI_PROVIDER === "gemini") {
     const key = process.env.GEMINI_API_KEY ?? "";
     let liveCheck: string;

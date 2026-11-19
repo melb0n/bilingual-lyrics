@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
+import { canEdit, useMe } from "@/lib/useMe";
 import { LANG_NAMES, otherLang, type SongSummary } from "@/lib/types";
 
 type View = "cards" | "details";
@@ -44,6 +45,7 @@ function Badges({ s }: { s: SongSummary }) {
 }
 
 export default function Library() {
+  const me = useMe();
   const [songs, setSongs] = useState<SongSummary[] | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -76,9 +78,11 @@ export default function Library() {
   return (
     <>
       <Header>
-        <Link href="/songs/new" className="btn btn-primary btn-sm">
-          + New song
-        </Link>
+        {canEdit(me) && (
+          <Link href="/songs/new" className="btn btn-primary btn-sm">
+            + New song
+          </Link>
+        )}
       </Header>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
         <div className="flex flex-wrap items-center gap-3">
@@ -135,10 +139,11 @@ export default function Library() {
             {songs.length === 0 ? (
               <>
                 No songs yet.{" "}
-                <Link href="/songs/new" className="text-accent underline">
-                  Add your first song
-                </Link>
-                .
+                {canEdit(me) && (
+                  <Link href="/songs/new" className="text-accent underline">
+                    Add your first song
+                  </Link>
+                )}
               </>
             ) : (
               <>

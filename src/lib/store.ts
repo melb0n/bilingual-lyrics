@@ -4,10 +4,10 @@ import path from "path";
 import { summarize, type Song, type SongSummary } from "./types";
 
 /**
- * Song library storage. Uses Netlify Blobs when running on Netlify,
+ * Storage (songs, users). Uses Netlify Blobs when running on Netlify,
  * and a local .data/ folder during development.
  */
-interface Backend {
+export interface Backend {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
@@ -16,9 +16,9 @@ interface Backend {
 
 const onNetlify = Boolean(process.env.NETLIFY || process.env.NETLIFY_BLOBS_CONTEXT);
 
-async function netlifyBackend(): Promise<Backend> {
+async function netlifyBackend(name: string): Promise<Backend> {
   const { getStore } = await import("@netlify/blobs");
-  const store = getStore({ name: "songs", consistency: "strong" });
+  const store = getStore({ name, consistency: "strong" });
   return {
     get: (key) => store.get(key, { type: "text" }),
     set: async (key, value) => {
@@ -29,8 +29,8 @@ async function netlifyBackend(): Promise<Backend> {
   };
 }
 
-function localBackend(): Backend {
-  const dir = path.join(process.cwd(), ".data", "songs");
+function localBackend(name: string): Backend {
+  const dir = path.join(process.cwd(), ".data", name);
   const file = (key: string) => path.join(dir, encodeURIComponent(key) + ".json");
   return {
     get: async (key) => fs.readFile(file(key), "utf8").catch(() => null),
@@ -46,7 +46,9 @@ function localBackend(): Backend {
   };
 }
 
-const backend = (): Promise<Backend> => (onNetlify ? netlifyBackend() : Promise.resolve(localBackend()));
+/** A named key-value store ("songs", "users"). */
+export const kv = (name: string): Promise<Backend> => (onNetlify ? netlifyBackend(name) : Promise.resolve(localBackend(name)));
+const backend = () => kv("songs");
 
 const VALID_ID = /^[0-9a-f-]{36}$/i;
 

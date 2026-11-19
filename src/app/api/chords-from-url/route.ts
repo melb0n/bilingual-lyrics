@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import type Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { stripChords } from "@/lib/chordpro";
@@ -43,6 +44,8 @@ Open the chart page with web_fetch. Find the part of the chart that matches the 
 If the page can't be read, has no chords, or is not this song, call report_chords with found=false and every entry "". Call report_chords exactly once.`;
 
 export async function POST(req: Request) {
+  const allowed = await requireRole(req, "editor");
+  if (allowed instanceof NextResponse) return allowed;
   const body = (await req.json().catch(() => null)) as {
     url?: string;
     title?: string;

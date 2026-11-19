@@ -11,6 +11,8 @@ import SongMetaCard from "@/components/SongMetaCard";
 import TranslationSearchPanel from "@/components/TranslationSearchPanel";
 import ChordChartPanel from "@/components/ChordChartPanel";
 import PcoPanel from "@/components/PcoPanel";
+import ReadOnlySong from "@/components/ReadOnlySong";
+import { canEdit, useMe } from "@/lib/useMe";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
 import StylePanel from "@/components/StylePanel";
 import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
@@ -73,6 +75,7 @@ function setSlideText(slide: Slide, lang: Lang, value: string, chordMode: boolea
 }
 
 function Editor() {
+  const me = useMe();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -240,7 +243,7 @@ function Editor() {
   }
 
   useEffect(() => {
-    if (song && searchParams.get("translate") === "1" && !autoTranslated.current) {
+    if (song && canEdit(me) && searchParams.get("translate") === "1" && !autoTranslated.current) {
       autoTranslated.current = true;
       router.replace(`/songs/${song.id}`);
       // Search for an official translation first; machine-translate only if none is found.
@@ -249,7 +252,7 @@ function Editor() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song]);
+  }, [song, me]);
 
   async function downloadPro() {
     if (!song) return;
@@ -279,6 +282,32 @@ function Editor() {
   const selectedSlide =
     song.sections.flatMap((s) => s.slides).find((s) => s.id === selected) ?? song.sections[0]?.slides[0];
   const missingCount = song.sections.flatMap((s) => s.slides).filter((s) => !s[target].trim()).length;
+
+  if (me && !canEdit(me)) {
+    return (
+      <>
+        <Header>
+          <Link href={`/songs/${song.id}/print`} className="btn btn-sm">
+            Print
+          </Link>
+          <details className="relative">
+            <summary className="btn btn-sm list-none">ChordPro ▾</summary>
+            <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
+              {(["en", "es", "both"] as ChordProMode[]).map((m) => (
+                <button key={m} className="btn btn-sm w-full justify-start border-0" onClick={() => downloadChordPro(m)}>
+                  {m === "both" ? "Both languages" : LANG_NAMES[m]} (.cho)
+                </button>
+              ))}
+            </div>
+          </details>
+          <button className="btn btn-sm" onClick={downloadPro}>
+            Download .pro
+          </button>
+        </Header>
+        <ReadOnlySong song={song} />
+      </>
+    );
+  }
 
   const songHasChords = song.sections.some((s) => s.slides.some((sl) => sl.chords && Object.values(sl.chords).some(Boolean)));
 

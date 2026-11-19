@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import type Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { searchAndReport } from "@/lib/webSearch";
@@ -45,6 +46,8 @@ Search the web for chord charts of the song (and of its other-language version i
 Do not copy chords or lyrics into your answer; just report links, the key, and short notes. When done, call report_chord_charts exactly once. If nothing reliable turns up, call it with found=false.`;
 
 export async function POST(req: Request) {
+  const allowed = await requireRole(req, "editor");
+  if (allowed instanceof NextResponse) return allowed;
   const body = (await req.json().catch(() => null)) as {
     title?: string;
     translatedTitle?: string;

@@ -30,6 +30,21 @@ A private tool for turning worship songs into bilingual ProPresenter slides
   github.com/greyshirtguy/pro7chordeditorwin, so they can be shown on a stage display with the stage
   layout's "Chords" option. Choose which language's box carries chords in the Style panel.
 
+## Sign-in and roles (Planning Center)
+Team members sign in with their Planning Center account; only people in your church's Planning Center
+organization are let in. Roles: **Admin** (people, roles, settings), **Editor** (songs, AI tools, Planning
+Center), **Viewer** (view, print, download). The first person to sign in becomes Admin; others start as
+Viewer unless an admin pre-assigned a role to their email on the **Team** page. Roles are enforced on the
+server for every API call.
+
+Setup: in Planning Center, create an OAuth application at api.planningcenteronline.com/oauth/applications
+with redirect URI `https://<your-site>/api/auth/callback`. Then set in Netlify:
+- `PCO_OAUTH_CLIENT_ID`, `PCO_OAUTH_CLIENT_SECRET` (turns Planning Center sign-in on)
+- `SESSION_SECRET`: a long random string used to sign sessions
+- `PCO_ORGANIZATION_ID` only if `PCO_APP_ID`/`PCO_SECRET` aren't set (the org is read from that token)
+
+Until the OAuth variables are set, the old shared `TEAM_PASSWORD` keeps working (everyone is Admin).
+
 ## Planning Center Services
 "Planning Center" in the song editor searches PCO Services for the song (or creates it), then creates or
 updates a "Bilingual" arrangement with the chord chart, key, BPM and time signature, and attaches the

@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, describeApiError, MODEL } from "@/lib/anthropic";
 import { AI_PROVIDER, GeminiError, geminiJson } from "@/lib/gemini";
@@ -26,6 +27,8 @@ Rules:
 - "chords" has one entry per slide. When a slide is also given with ChordPro chords (like "[G]Amazing [D]grace"), return your translation with the same chords, in the same order, each placed in square brackets right before the syllable sung on that chord. Removing the bracketed chords must give exactly the matching "translations" entry. For slides given without chords, return "".`;
 
 export async function POST(req: Request) {
+  const allowed = await requireRole(req, "editor");
+  if (allowed instanceof NextResponse) return allowed;
   const body = (await req.json().catch(() => null)) as {
     from?: Lang;
     to?: Lang;

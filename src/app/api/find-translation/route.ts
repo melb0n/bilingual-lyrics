@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import type Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { LANG_NAMES, type Lang } from "@/lib/types";
@@ -51,6 +52,8 @@ Search the web for the song in the target language: official releases by the ori
 Do not copy the translated lyrics into your answer; just report the title, artist, and links. When you are done, call report_result exactly once. If you find nothing reliable, call it with found=false.`;
 
 export async function POST(req: Request) {
+  const allowed = await requireRole(req, "editor");
+  if (allowed instanceof NextResponse) return allowed;
   const body = (await req.json().catch(() => null)) as {
     title?: string;
     translatedTitle?: string;

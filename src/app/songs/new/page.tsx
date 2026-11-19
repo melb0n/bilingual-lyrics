@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import Header from "@/components/Header";
+import { canEdit, useMe } from "@/lib/useMe";
 import { combine, readDoc, rechunk } from "@/lib/align";
 import { parseSong } from "@/lib/parse";
 import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
@@ -17,6 +18,7 @@ function splitTitle(title: string | undefined): [string | undefined, string | un
 }
 
 export default function NewSong() {
+  const me = useMe();
   const router = useRouter();
   // Song details: filled in automatically from ChordPro tags unless the user types their own.
   const [overrides, setOverrides] = useState<Partial<Record<MetaField, string>>>({});
@@ -116,6 +118,17 @@ export default function NewSong() {
           : "Couldn't read that file. Make sure it's a ProPresenter 7 .pro file.",
       );
     }
+  }
+
+  if (me && !canEdit(me)) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto max-w-xl px-4 py-10">
+          <div className="card text-center text-muted">Adding songs needs Editor access. Ask a team admin.</div>
+        </main>
+      </>
+    );
   }
 
   return (

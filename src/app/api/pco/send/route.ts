@@ -1,3 +1,4 @@
+import { requireRole } from "@/lib/authz";
 import { NextResponse } from "next/server";
 import { attachFile, createSong, PcoError, saveArrangement, songUrl, type ArrangementFields } from "@/lib/pco";
 
@@ -17,6 +18,8 @@ interface SendBody {
 const MAX_FILE = 5 * 1024 * 1024;
 
 export async function POST(req: Request) {
+  const allowed = await requireRole(req, "editor");
+  if (allowed instanceof NextResponse) return allowed;
   const body = (await req.json().catch(() => null)) as SendBody | null;
   if (!body || (!body.pcoSongId && !body.newSong?.title?.trim())) {
     return NextResponse.json({ error: "Choose a Planning Center song or create a new one." }, { status: 400 });
