@@ -7,9 +7,20 @@ import { combine, readDoc, rechunk } from "@/lib/align";
 import { parseSong } from "@/lib/parse";
 import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
 
+type MetaField = "title" | "translatedTitle" | "artist" | "key" | "bpm" | "timeSignature";
+
+/** "Todo Lo Haces Bien / Something Good" -> ["Todo Lo Haces Bien", "Something Good"] */
+function splitTitle(title: string | undefined): [string | undefined, string | undefined] {
+  if (!title) return [undefined, undefined];
+  const parts = title.split(/\s+\/\s+|\s+\|\s+/);
+  return parts.length === 2 ? [parts[0].trim(), parts[1].trim()] : [title.trim(), undefined];
+}
+
 export default function NewSong() {
   const router = useRouter();
-  const [title, setTitle] = useState("");
+  // Song details: filled in automatically from ChordPro tags unless the user types their own.
+  const [overrides, setOverrides] = useState<Partial<Record<MetaField, string>>>({});
+  const [fileName, setFileName] = useState("");
   const [sourceLang, setSourceLang] = useState<Lang>("en");
   const [linesPerSlide, setLinesPerSlide] = useState(2);
   const [text, setText] = useState("");
@@ -19,6 +30,20 @@ export default function NewSong() {
 
   const parsed = useMemo(() => parseSong(text, sourceLang, linesPerSlide), [text, sourceLang, linesPerSlide]);
   const sections = parsed.sections;
+  const parsedSecond = useMemo(() => parseSong(secondText, otherLang(sourceLang)), [secondText, sourceLang]);
+
+  const [mainTitle, splitSecond] = splitTitle(parsed.title);
+  const detected: Partial<Record<MetaField, string>> = {
+    title: mainTitle ?? (fileName ? fileName.replace(/\.[^.]+$/, "") : undefined),
+    translatedTitle: parsedSecond.title ?? splitSecond,
+    artist: parsed.artist ?? parsedSecond.artist,
+    key: parsed.key ?? parsedSecond.key,
+    bpm: parsed.bpm ?? parsedSecond.bpm,
+    timeSignature: parsed.timeSignature ?? parsedSecond.timeSignature,
+  };
+  const meta = (f: MetaField) => (overrides[f] ?? detected[f] ?? "").trim();
+  const isAuto = (f: MetaField) => overrides[f] === undefined && Boolean(detected[f]);
+  const title = meta("title");
   const slideCount = sections.reduce((n, s) => n + s.slides.length, 0);
 
   async function save(song: Song, translate: boolean) {
@@ -39,13 +64,14 @@ export default function NewSong() {
     setError("");
     let song: Song = {
       id: newId(),
-      title: title.trim() || parsed.title || "Untitled",
+      title: title || "Untitled",
+      translatedTitle: meta("translatedTitle") || undefined,
       sourceLang,
       sections,
-      key: parsed.key,
-      artist: parsed.artist,
-      bpm: parsed.bpm,
-      timeSignature: parsed.timeSignature,
+      key: meta("key") || undefined,
+      artist: meta("artist") || undefined,
+      bpm: meta("bpm") || undefined,
+      timeSignature: meta("timeSignature") || undefined,
       style: { ...DEFAULT_STYLE },
       updatedAt: new Date().toISOString(),
     };
@@ -54,7 +80,7 @@ export default function NewSong() {
       // Pair both languages line by line, then split into slides.
       const second = readDoc(secondText, otherLang(sourceLang));
       song.sections = combine(readDoc(text, sourceLang), second, sourceLang).sections;
-      song.translatedTitle = second.title;
+      song.translatedTitle = meta("translatedTitle") || second.title;
       song = rechunk(song, linesPerSlide);
     }
     await save(song, !hasSecond);
@@ -68,8 +94,7 @@ export default function NewSong() {
       // ChordPro or plain-text chart: load it into the text box for review.
       const content = new TextDecoder().decode(bytes);
       setText(content);
-      const meta = parseSong(content, sourceLang, linesPerSlide);
-      if (!title.trim()) setTitle(meta.title || file.name.replace(/\.[^.]+$/, ""));
+      setFileName(file.name);
       return;
     }
     setBusy(true);
@@ -99,9 +124,37 @@ export default function NewSong() {
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-2">
         <section className="space-y-4">
           <h1 className="text-2xl font-semibold">New song</h1>
-          <div>
-            <label className="label">Title</label>
-            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Todo Lo Haces Bien" />
+          <div className="card space-y-3 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Song details</span>
+              <span className="text-xs text-muted">Filled in automatically from ChordPro tags like {"{title:}"} and {"{key:}"}</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["title", `Title (${LANG_NAMES[sourceLang]})`, "e.g. Todo Lo Haces Bien"],
+                  ["translatedTitle", `Title (${LANG_NAMES[otherLang(sourceLang)]})`, "e.g. Something Good"],
+                  ["artist", "Artist", "e.g. Gateway Worship"],
+                  ["key", "Key", "e.g. A"],
+                  ["bpm", "BPM", "e.g. 78"],
+                  ["timeSignature", "Time signature", "e.g. 4/4"],
+                ] as [MetaField, string, string][]
+              ).map(([field, label, placeholder]) => (
+                <div key={field}>
+                  <label className="label" htmlFor={`new-${field}`}>
+                    {label}
+                    {isAuto(field) && <span className="ml-1.5 rounded bg-accent/15 px-1 text-[10px] text-accent">auto</span>}
+                  </label>
+                  <input
+                    id={`new-${field}`}
+                    className="input"
+                    placeholder={placeholder}
+                    value={overrides[field] ?? detected[field] ?? ""}
+                    onChange={(e) => setOverrides((o) => ({ ...o, [field]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -168,7 +221,7 @@ export default function NewSong() {
             />
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button className="btn btn-primary" disabled={busy || !(title.trim() || parsed.title) || slideCount === 0} onClick={create}>
+          <button className="btn btn-primary" disabled={busy || !title || slideCount === 0} onClick={create}>
             {busy ? "Saving…" : secondText.trim() ? `Create song (${slideCount} slides)` : `Create song & translate (${slideCount} slides)`}
           </button>
         </section>
@@ -176,13 +229,6 @@ export default function NewSong() {
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-muted">Preview</h2>
           {sections.length === 0 && <p className="text-sm text-muted">Slides will appear here as you paste.</p>}
-          {(parsed.title || parsed.key || parsed.artist) && (
-            <p className="text-xs text-muted">
-              {[parsed.title && `Title: ${parsed.title}`, parsed.artist && `Artist: ${parsed.artist}`, parsed.key && `Key: ${parsed.key}`]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          )}
           {sections.map((s) => (
             <div key={s.id} className="card space-y-2 p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted">{s.name}</div>
