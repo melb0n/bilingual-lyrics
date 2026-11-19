@@ -44,6 +44,29 @@ function Badges({ s }: { s: SongSummary }) {
   );
 }
 
+interface Filters {
+  status: "all" | "bilingual" | "untranslated";
+  chords: "all" | "yes" | "no";
+  lang: "all" | "en" | "es";
+  key: string;
+  artist: string;
+  pco: "all" | "linked" | "unlinked";
+}
+const NO_FILTERS: Filters = { status: "all", chords: "all", lang: "all", key: "", artist: "", pco: "all" };
+
+function matches(s: SongSummary, f: Filters): boolean {
+  if (f.status === "bilingual" && s.untranslatedSlides > 0) return false;
+  if (f.status === "untranslated" && s.untranslatedSlides === 0) return false;
+  if (f.chords === "yes" && !s.hasChords) return false;
+  if (f.chords === "no" && s.hasChords) return false;
+  if (f.lang !== "all" && s.sourceLang !== f.lang) return false;
+  if (f.key && (s.key ?? "").trim() !== f.key) return false;
+  if (f.artist && (s.artist ?? "").trim() !== f.artist) return false;
+  if (f.pco === "linked" && !s.pcoSongId) return false;
+  if (f.pco === "unlinked" && s.pcoSongId) return false;
+  return true;
+}
+
 export default function Library() {
   const me = useMe();
   const [songs, setSongs] = useState<SongSummary[] | null>(null);
@@ -51,6 +74,22 @@ export default function Library() {
   const [error, setError] = useState("");
   const [view, setView] = useState<View>("cards");
   const [sort, setSort] = useState<Sort>("title");
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilters = (Object.keys(NO_FILTERS) as (keyof Filters)[]).filter((k) => filters[k] !== NO_FILTERS[k]).length;
+  const setFilter = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
+  // Choices for the key and artist filters come from the songs in the library.
+  const keyOptions = useMemo(
+    () => [...new Set((songs ?? []).map((s) => s.key?.trim()).filter((k): k is string => Boolean(k)))].sort(),
+    [songs],
+  );
+  const artistOptions = useMemo(
+    () =>
+      [...new Set((songs ?? []).map((s) => s.artist?.trim()).filter((a): a is string => Boolean(a)))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [songs],
+  );
 
   useEffect(() => {
     setView(readPref<View>(VIEW_KEY, ["cards", "details"], "cards"));
@@ -64,7 +103,7 @@ export default function Library() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = (songs ?? []).filter(
-      (s) => !q || [s.title, s.translatedTitle, s.artist].some((t) => t?.toLowerCase().includes(q)),
+      (s) => (!q || [s.title, s.translatedTitle, s.artist].some((t) => t?.toLowerCase().includes(q))) && matches(s, filters),
     );
     return list.sort((a, b) =>
       sort === "updated"
@@ -73,7 +112,7 @@ export default function Library() {
           ? (a.artist ?? "~").localeCompare(b.artist ?? "~") || a.title.localeCompare(b.title)
           : a.title.localeCompare(b.title),
     );
-  }, [songs, query, sort]);
+  }, [songs, query, sort, filters]);
 
   return (
     <>
@@ -92,7 +131,11 @@ export default function Library() {
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">Song library</h1>
-          {songs && <span className="text-sm text-muted">{songs.length} songs</span>}
+          {songs && (
+            <span className="text-sm text-muted">
+              {filtered.length === songs.length ? `${songs.length} songs` : `Showing ${filtered.length} of ${songs.length} songs`}
+            </span>
+          )}
           <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <input
               className="input min-w-0 flex-1 sm:w-64 sm:flex-none"
@@ -100,6 +143,15 @@ export default function Library() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            <button
+              type="button"
+              className={`btn ${activeFilters ? "border-accent text-accent" : ""}`}
+              aria-expanded={showFilters}
+              aria-controls="library-filters"
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              Filters{activeFilters ? ` (${activeFilters})` : ""}
+            </button>
             <select
               className="input w-auto py-2"
               aria-label="Sort songs"
@@ -137,6 +189,78 @@ export default function Library() {
           </div>
         </div>
 
+        {showFilters && (
+          <div id="library-filters" className="card grid gap-3 p-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+            <div>
+              <label className="label" htmlFor="f-status">
+                Translation
+              </label>
+              <select id="f-status" className="input" value={filters.status} onChange={(e) => setFilter("status", e.target.value as Filters["status"])}>
+                <option value="all">All</option>
+                <option value="bilingual">Bilingual (complete)</option>
+                <option value="untranslated">Needs translation</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-chords">
+                Chords
+              </label>
+              <select id="f-chords" className="input" value={filters.chords} onChange={(e) => setFilter("chords", e.target.value as Filters["chords"])}>
+                <option value="all">All</option>
+                <option value="yes">With chords</option>
+                <option value="no">Without chords</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-lang">
+                Main language
+              </label>
+              <select id="f-lang" className="input" value={filters.lang} onChange={(e) => setFilter("lang", e.target.value as Filters["lang"])}>
+                <option value="all">All</option>
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-key">
+                Key
+              </label>
+              <select id="f-key" className="input" value={filters.key} onChange={(e) => setFilter("key", e.target.value)}>
+                <option value="">All</option>
+                {keyOptions.map((k) => (
+                  <option key={k}>{k}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-artist">
+                Artist
+              </label>
+              <select id="f-artist" className="input" value={filters.artist} onChange={(e) => setFilter("artist", e.target.value)}>
+                <option value="">All</option>
+                {artistOptions.map((a) => (
+                  <option key={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-pco">
+                Planning Center
+              </label>
+              <select id="f-pco" className="input" value={filters.pco} onChange={(e) => setFilter("pco", e.target.value as Filters["pco"])}>
+                <option value="all">All</option>
+                <option value="linked">Linked</option>
+                <option value="unlinked">Not linked</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button type="button" className="btn w-full" disabled={!activeFilters} onClick={() => setFilters(NO_FILTERS)}>
+                Clear filters
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         {songs === null && !error && <p className="text-muted">Loading…</p>}
         {songs && filtered.length === 0 && (
@@ -150,9 +274,16 @@ export default function Library() {
                   </Link>
                 )}
               </>
+            ) : activeFilters && !query.trim() ? (
+              <>
+                No songs match these filters.{" "}
+                <button type="button" className="text-accent underline" onClick={() => setFilters(NO_FILTERS)}>
+                  Clear filters
+                </button>
+              </>
             ) : (
               <>
-                No songs match “{query}”.{" "}
+                No songs match “{query}”{activeFilters ? " with these filters" : ""}.{" "}
                 <a
                   className="text-accent underline"
                   target="_blank"
