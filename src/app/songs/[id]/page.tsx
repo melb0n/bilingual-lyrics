@@ -11,6 +11,7 @@ import SongMetaCard from "@/components/SongMetaCard";
 import TranslationSearchPanel from "@/components/TranslationSearchPanel";
 import ChordChartPanel from "@/components/ChordChartPanel";
 import PcoPanel from "@/components/PcoPanel";
+import PcoUpdatePanel from "@/components/PcoUpdatePanel";
 import ReadOnlySong from "@/components/ReadOnlySong";
 import { canEdit, useMe } from "@/lib/useMe";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
@@ -90,6 +91,7 @@ function Editor() {
   const [searchResult, setSearchResult] = useState<TranslationSearchResult | null>(null);
   const [chordPanel, setChordPanel] = useState(false);
   const [pcoPanel, setPcoPanel] = useState(false);
+  const [pcoUpdate, setPcoUpdate] = useState(false);
   const autoTranslated = useRef(false);
   const songRef = useRef<Song | null>(null);
   songRef.current = song;
@@ -344,6 +346,15 @@ function Editor() {
             >
               🎸 {songHasChords ? "Add / replace chords" : "Add chords"}
             </button>
+            {song.pco && (
+              <button
+                className="btn btn-sm"
+                title="Bring in changes made to this song in Planning Center"
+                onClick={() => setPcoUpdate((v) => !v)}
+              >
+                ↻ Update from Planning Center
+              </button>
+            )}
             <button
               className="btn btn-sm"
               disabled={searching}
@@ -356,6 +367,9 @@ function Editor() {
               {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
             </button>
           </div>
+          {pcoUpdate && (
+            <PcoUpdatePanel song={song} onApply={(next) => update(() => next)} onClose={() => setPcoUpdate(false)} />
+          )}
           {pcoPanel && (
             <PcoPanel song={song} onSent={(pco) => update((s) => ({ ...s, pco }))} onClose={() => setPcoPanel(false)} />
           )}

@@ -219,7 +219,7 @@ export interface PcoSongForImport {
  * A song with the best arrangement to import: one named "Bilingual" if present (sent from this site),
  * else the first with a chord chart, else the first with lyrics.
  */
-export async function songForImport(songId: string): Promise<PcoSongForImport> {
+export async function songForImport(songId: string, arrangementId?: string): Promise<PcoSongForImport> {
   const song = await pco<{ data: Resource<{ title: string; author: string | null; ccli_number: number | null }> }>(`/songs/${songId}`);
   const arrs = await pco<{
     data: Resource<{
@@ -233,6 +233,7 @@ export async function songForImport(songId: string): Promise<PcoSongForImport> {
   }>(`/songs/${songId}/arrangements?per_page=25`);
   const has = (s: string | null | undefined) => Boolean(s && s.trim());
   const pick =
+    (arrangementId ? arrs.data.find((a) => a.id === arrangementId) : undefined) ??
     arrs.data.find((a) => /biling/i.test(a.attributes.name) && has(a.attributes.chord_chart)) ??
     arrs.data.find((a) => has(a.attributes.chord_chart)) ??
     arrs.data.find((a) => has(a.attributes.lyrics)) ??
