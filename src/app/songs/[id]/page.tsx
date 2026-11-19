@@ -10,6 +10,7 @@ import SlidePreview from "@/components/SlidePreview";
 import SongMetaCard from "@/components/SongMetaCard";
 import TranslationSearchPanel from "@/components/TranslationSearchPanel";
 import ChordChartPanel from "@/components/ChordChartPanel";
+import PcoPanel from "@/components/PcoPanel";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
 import StylePanel from "@/components/StylePanel";
 import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
@@ -85,6 +86,7 @@ function Editor() {
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<TranslationSearchResult | null>(null);
   const [chordPanel, setChordPanel] = useState(false);
+  const [pcoPanel, setPcoPanel] = useState(false);
   const autoTranslated = useRef(false);
   const songRef = useRef<Song | null>(null);
   songRef.current = song;
@@ -325,6 +327,9 @@ function Editor() {
               {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
             </button>
           </div>
+          {pcoPanel && (
+            <PcoPanel song={song} onSent={(pco) => update((s) => ({ ...s, pco }))} onClose={() => setPcoPanel(false)} />
+          )}
           {chordPanel && (
             <ChordChartPanel
               song={song}
@@ -376,6 +381,9 @@ function Editor() {
         </details>
         <button className="btn btn-sm" onClick={downloadPro}>
           Download .pro
+        </button>
+        <button className="btn btn-sm" onClick={() => setPcoPanel((v) => !v)}>
+          Planning Center
         </button>
       </Header>
       {view === "full" ? (

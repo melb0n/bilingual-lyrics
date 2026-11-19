@@ -30,6 +30,13 @@ A private tool for turning worship songs into bilingual ProPresenter slides
   github.com/greyshirtguy/pro7chordeditorwin, so they can be shown on a stage display with the stage
   layout's "Chords" option. Choose which language's box carries chords in the Style panel.
 
+## Planning Center Services
+"Planning Center" in the song editor searches PCO Services for the song (or creates it), then creates or
+updates a "Bilingual" arrangement with the chord chart, key, BPM and time signature, and attaches the
+bilingual `.pro` plus PDF lyric and chord sheets. Set `PCO_APP_ID` and `PCO_SECRET` (a Personal Access
+Token from api.planningcenteronline.com/oauth/applications; its person needs Editor access to Services
+songs). The token is used only on the server.
+
 ## About the .pro format
 ProPresenter 7 files are Google Protocol Buffers. The schema in `src/lib/pro/schema.json` is generated from the
 unofficial, reverse-engineered definitions at github.com/greyshirtguy/ProPresenter7-Proto (MIT, see

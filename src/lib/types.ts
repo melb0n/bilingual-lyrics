@@ -52,6 +52,8 @@ export interface Song {
   translatedTitle?: string;
   /** Musical key, e.g. "G" or "Bb". */
   key?: string;
+  /** Where this song was last sent in Planning Center Services. */
+  pco?: { songId: string; arrangementId: string; url: string; sentAt: string };
   /** Key before any transposing, so it can be reset. */
   originalKey?: string;
   artist?: string;

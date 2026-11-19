@@ -118,3 +118,27 @@ export function toChordPro(song: Song, mode: ChordProMode): string {
   }
   return out.join("\n") + "\n";
 }
+
+/**
+ * Chord chart text for Planning Center Services: section names in capitals on their own line,
+ * then the lyrics with [chords], top language line followed by its translation.
+ */
+export function toPcoChordChart(song: Song): string {
+  const first = song.style.topLang;
+  const second = otherLang(first);
+  const out: string[] = [];
+  for (const section of song.sections) {
+    if (out.length) out.push("");
+    out.push(section.name.toUpperCase());
+    section.slides.forEach((slide, i) => {
+      if (i > 0) out.push("");
+      const a = chordedText(slide, first).split("\n");
+      const b = chordedText(slide, second).split("\n");
+      for (let k = 0; k < Math.max(a.length, b.length); k++) {
+        if (a[k]?.trim()) out.push(a[k]);
+        if (b[k]?.trim()) out.push(b[k]);
+      }
+    });
+  }
+  return out.join("\n") + "\n";
+}
