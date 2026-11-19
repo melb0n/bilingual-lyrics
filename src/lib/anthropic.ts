@@ -17,7 +17,11 @@ export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 export function describeApiError(error: unknown): string | null {
   if (!(error instanceof Anthropic.APIError)) return null;
   const text = `${error.message} ${JSON.stringify(error.error ?? "")}`;
-  if (/usage_exceeded|credit|billing|quota/i.test(text))
-    return "The AI usage limit was reached (Anthropic credit balance or spend limit). Check Billing in the Anthropic Console.";
+  if (/usage_exceeded|credit|billing|quota|spend/i.test(text)) {
+    // Anthropic's own wording (never contains the key), so the exact cause is visible.
+    const body = error.error as { error?: { message?: string } } | undefined;
+    const detail = (body?.error?.message ?? error.message).replace(/\s+/g, " ").slice(0, 200);
+    return `Anthropic billing: ${detail} Check Billing (credit balance) and Limits (spend limit) in the Anthropic Console.`;
+  }
   return null;
 }
