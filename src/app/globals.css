@@ -67,3 +67,16 @@ body {
     color: black;
   }
 }
+
+/* Always-light area (the printable sheet stays white in dark mode, so its controls must too). */
+.force-light {
+  --background: #f7f7f5;
+  --surface: #ffffff;
+  --foreground: #1c1c1a;
+  --muted: #6b6b66;
+  --border: #d6d5cf;
+  --accent: #3b5bdb;
+  --accent-fg: #ffffff;
+  color: var(--foreground);
+  color-scheme: light;
+}

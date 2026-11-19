@@ -43,7 +43,7 @@ export default function PrintSheet() {
     .join(" · ");
 
   return (
-    <main className="mx-auto max-w-4xl bg-white p-8 text-black print:p-0">
+    <main className="force-light mx-auto max-w-4xl bg-white p-8 text-black print:p-0">
       <div className="no-print mb-6 flex flex-wrap items-center gap-2">
         <Link href={`/songs/${song.id}`} className="btn btn-sm">
           ← Back to editor
