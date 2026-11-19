@@ -66,6 +66,37 @@ export interface SongSummary {
   id: string;
   title: string;
   updatedAt: string;
+  translatedTitle?: string;
+  artist?: string;
+  key?: string;
+  bpm?: string;
+  timeSignature?: string;
+  sourceLang: Lang;
+  sectionCount: number;
+  slideCount: number;
+  hasChords: boolean;
+  /** Slides that are missing the second language. */
+  untranslatedSlides: number;
+}
+
+export function summarize(song: Song): SongSummary {
+  const slides = song.sections.flatMap((s) => s.slides);
+  const other = otherLang(song.sourceLang);
+  return {
+    id: song.id,
+    title: song.title,
+    updatedAt: song.updatedAt,
+    translatedTitle: song.translatedTitle,
+    artist: song.artist,
+    key: song.key,
+    bpm: song.bpm,
+    timeSignature: song.timeSignature,
+    sourceLang: song.sourceLang,
+    sectionCount: song.sections.length,
+    slideCount: slides.length,
+    hasChords: slides.some((sl) => sl.chords && Object.values(sl.chords).some(Boolean)),
+    untranslatedSlides: slides.filter((sl) => sl[song.sourceLang].trim() && !sl[other].trim()).length,
+  };
 }
 
 /** The church's "VB Bilingual Lyrics" ProPresenter theme. */

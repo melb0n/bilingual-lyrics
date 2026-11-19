@@ -1,7 +1,7 @@
 import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
-import type { Song, SongSummary } from "./types";
+import { summarize, type Song, type SongSummary } from "./types";
 
 /**
  * Song library storage. Uses Netlify Blobs when running on Netlify,
@@ -74,7 +74,6 @@ export async function listSongs(): Promise<SongSummary[]> {
   const songs = await Promise.all(keys.map((k) => b.get(k)));
   return songs
     .filter((s): s is string => Boolean(s))
-    .map((s) => JSON.parse(s) as Song)
-    .map(({ id, title, updatedAt }) => ({ id, title, updatedAt }))
+    .map((s) => summarize(JSON.parse(s) as Song))
     .sort((a, b) => a.title.localeCompare(b.title));
 }
