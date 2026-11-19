@@ -10,8 +10,19 @@
   --accent-fg: #ffffff;
 }
 
+/* Dark colors: chosen explicitly (data-theme="dark"), or by the system when no choice was made. */
+:root[data-theme="dark"] {
+  --background: #121211;
+  --surface: #1c1c1a;
+  --foreground: #ecebe6;
+  --muted: #a3a29c;
+  --border: #33332f;
+  --accent: #7b93ff;
+  --accent-fg: #0d0d0c;
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #121211;
     --surface: #1c1c1a;
     --foreground: #ecebe6;
@@ -19,8 +30,15 @@
     --border: #33332f;
     --accent: #7b93ff;
     --accent-fg: #0d0d0c;
+    color-scheme: dark;
   }
 }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Tailwind's dark: variant follows the resolved theme set on <html>. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --color-background: var(--background);

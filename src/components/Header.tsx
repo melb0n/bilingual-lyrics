@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Header({ children }: { children?: React.ReactNode }) {
   async function logout() {
@@ -15,6 +16,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
         </Link>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {children}
+          <ThemeToggle />
           <button className="btn btn-sm" onClick={logout}>
             Sign out
           </button>
