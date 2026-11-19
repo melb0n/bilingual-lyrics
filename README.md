@@ -12,10 +12,15 @@ A private tool for turning worship songs into bilingual ProPresenter slides
 - **Slide preview** and **style** settings (font, size, color, which language on top)
 - **Printable bilingual lyric sheet** (Print / Save as PDF)
 - **Song library** with search, stored in Netlify Blobs
+- **Upload a `.pro` file** (English-only, Spanish-only, or bilingual; the site works out which box is which language)
+- **Download as ProPresenter 7 `.pro`** in the "Como Dijiste - Bilingual" layout: two text boxes,
+  section groups with colors and hot keys
 
-## Coming next
-- Upload an existing `.pro` file
-- Download as ProPresenter 7 `.pro` (needs sample `.pro` files to match the format)
+## About the .pro format
+ProPresenter 7 files are Google Protocol Buffers. The schema in `src/lib/pro/schema.json` is generated from the
+unofficial, reverse-engineered definitions at github.com/greyshirtguy/ProPresenter7-Proto (MIT, see
+`src/lib/pro/PROTO_LICENSE`). The slide layout in `src/lib/pro/template.json` comes from a file saved by
+ProPresenter 18.4. Always open exported files in ProPresenter and check them before a service.
 
 ## Deploying on Netlify
 1. In Netlify: **Add new site → Import an existing project → GitHub** and pick this repo.

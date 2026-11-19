@@ -41,7 +41,7 @@ export interface SongSummary {
 /** Matches the "Como Dijiste - Bilingual" layout. */
 export const DEFAULT_STYLE: SongStyle = {
   font: "Arial",
-  fontSize: 60,
+  fontSize: 50,
   color: "#ffffff",
   background: "#000000",
   topLang: "en",

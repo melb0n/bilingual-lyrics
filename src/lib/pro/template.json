@@ -1,0 +1,230 @@
+{
+ "_source": "Derived from 'Como Dijiste - Bilingual.pro' (ProPresenter 18.4, Windows). Text and UUIDs are filled in at export.",
+ "application_info": {
+  "platform": "PLATFORM_WINDOWS",
+  "platform_version": {
+   "major_version": 10,
+   "patch_version": 4294967295,
+   "build": "26200"
+  },
+  "application": "APPLICATION_PROPRESENTER",
+  "application_version": {
+   "major_version": 18,
+   "minor_version": 4,
+   "patch_version": 1,
+   "build": "302252289"
+  }
+ },
+ "slide": {
+  "background_color": {
+   "alpha": 1
+  },
+  "size": {
+   "width": 1920,
+   "height": 1080
+  }
+ },
+ "notes": {
+  "rtf_data": "e1xydGYwXGFuc2lcYW5zaWNwZzEyNTJ7XGZvbnR0YmxcZjBcZm5pbCBBcmlhbE1UO317XGNvbG9ydGJsO1xyZWQwXGdyZWVuMFxibHVlMDtccmVkMjU1XGdyZWVuMjU1XGJsdWUyNTU7XHJlZDI1NVxncmVlbjI1NVxibHVlMjU1O317XCpcZXhwYW5kZWRjb2xvcnRibDtcY3NnZW5lcmljcmdiXGMwXGMwXGMwXGMxMDAwMDA7XGNzZ2VuZXJpY3JnYlxjMTAwMDAwXGMxMDAwMDBcYzEwMDAwMFxjMTAwMDAwO1xjc2dlbmVyaWNyZ2JcYzEwMDAwMFxjMTAwMDAwXGMxMDAwMDBcYzA7fXtcKlxsaXN0dGFibGV9e1wqXGxpc3RvdmVycmlkZXRhYmxlfVx1YzFccGFwZXJ3MTIyNDBcbWFyZ2wwXG1hcmdyMFxtYXJndDBcbWFyZ2IwXHBhcmRcbGkwXGZpMFxyaTBccWxcc2IwXHNhMFxzbDI0MFxzbG11bHQxXHNsbGVhZGluZzBcZjBcYjBcaTBcdWwwXHN0cmlrZTBcZnMxMDBcZXhwbmQwXGV4cG5kdHcwXENvY29hTGlnYXR1cmUxXGNmMVxzdHJva2V3aWR0aDBcc3Ryb2tlYzJcbm9zdXBlcnN1Ylx1bGMwXGhpZ2hsaWdodDNcY2IzfQ==",
+  "attributes": {
+   "font": {
+    "name": "ArialMT",
+    "size": 50,
+    "family": "Arial",
+    "face": "Regular"
+   },
+   "text_solid_fill": {
+    "alpha": 1
+   },
+   "paragraph_style": {
+    "line_height_multiple": 1,
+    "text_list": {}
+   },
+   "stroke_color": {
+    "red": 1,
+    "green": 1,
+    "blue": 1,
+    "alpha": 1
+   }
+  }
+ },
+ "chord_chart": {},
+ "topBounds": {
+  "origin": {
+   "x": 26.666666666666742,
+   "y": 13.91891891891882
+  },
+  "size": {
+   "width": 1873.873873873874,
+   "height": 500.0900900900902
+  }
+ },
+ "bottomBounds": {
+  "origin": {
+   "x": 26.666666666666742,
+   "y": 555.0450450450451
+  },
+  "size": {
+   "width": 1863.7837837837837,
+   "height": 487.1171171171172
+  }
+ },
+ "element": {
+  "element": {
+   "bounds": {
+    "origin": {
+     "x": 26.666666666666742,
+     "y": 13.91891891891882
+    },
+    "size": {
+     "width": 1873.873873873874,
+     "height": 500.0900900900902
+    }
+   },
+   "opacity": 1,
+   "path": {
+    "closed": true,
+    "points": [
+     {
+      "point": {},
+      "q0": {},
+      "q1": {}
+     },
+     {
+      "point": {
+       "x": 1
+      },
+      "q0": {
+       "x": 1
+      },
+      "q1": {
+       "x": 1
+      }
+     },
+     {
+      "point": {
+       "x": 1,
+       "y": 1
+      },
+      "q0": {
+       "x": 1,
+       "y": 1
+      },
+      "q1": {
+       "x": 1,
+       "y": 1
+      }
+     },
+     {
+      "point": {
+       "y": 1
+      },
+      "q0": {
+       "y": 1
+      },
+      "q1": {
+       "y": 1
+      }
+     }
+    ],
+    "shape": {
+     "type": "TYPE_RECTANGLE"
+    }
+   },
+   "fill": {
+    "color": {
+     "red": 0.11764705926179886,
+     "green": 0.5647059082984924,
+     "blue": 1,
+     "alpha": 1
+    }
+   },
+   "stroke": {
+    "width": 3,
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1,
+     "alpha": 1
+    }
+   },
+   "shadow": {
+    "angle": 315,
+    "offset": 5,
+    "radius": 5,
+    "color": {
+     "alpha": 1
+    },
+    "opacity": 0.75
+   },
+   "feather": {
+    "radius": 0.05
+   },
+   "text": {
+    "attributes": {
+     "font": {
+      "name": "ArialMT",
+      "size": 50,
+      "family": "Arial",
+      "face": "Regular"
+     },
+     "text_solid_fill": {
+      "red": 1,
+      "green": 1,
+      "blue": 1,
+      "alpha": 1
+     },
+     "paragraph_style": {
+      "alignment": "ALIGNMENT_CENTER",
+      "line_height_multiple": 1,
+      "text_list": {}
+     },
+     "stroke_color": {
+      "red": 1,
+      "green": 1,
+      "blue": 1,
+      "alpha": 1
+     }
+    },
+    "shadow": {
+     "angle": 315,
+     "offset": 5,
+     "radius": 5,
+     "color": {
+      "alpha": 1
+     },
+     "opacity": 0.75
+    },
+    "vertical_alignment": "VERTICAL_ALIGNMENT_MIDDLE",
+    "margins": {},
+    "is_superscript_standardized": true,
+    "transformDelimiter": "  \u2022  ",
+    "chord_pro": {}
+   },
+   "text_line_mask": {}
+  },
+  "info": 3,
+  "text_scroller": {
+   "scroll_rate": 0.5,
+   "should_repeat": true,
+   "repeat_distance": 0.05336538461538461
+  }
+ },
+ "cue": {
+  "completion_action_type": "COMPLETION_ACTION_TYPE_LAST",
+  "trigger_time": {},
+  "isEnabled": true
+ },
+ "action": {
+  "isEnabled": true,
+  "type": "ACTION_TYPE_PRESENTATION_SLIDE"
+ },
+ "timeline": {
+  "duration": 300
+ },
+ "background": {
+  "color": {
+   "alpha": 1
+  }
+ }
+}

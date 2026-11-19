@@ -18,17 +18,7 @@ export default function NewSong() {
   const sections = useMemo(() => parseLyrics(text, sourceLang, linesPerSlide), [text, sourceLang, linesPerSlide]);
   const slideCount = sections.reduce((n, s) => n + s.slides.length, 0);
 
-  async function create() {
-    setBusy(true);
-    setError("");
-    const song: Song = {
-      id: newId(),
-      title: title.trim(),
-      sourceLang,
-      sections,
-      style: { ...DEFAULT_STYLE },
-      updatedAt: new Date().toISOString(),
-    };
+  async function save(song: Song, translate: boolean) {
     const res = await fetch("/api/songs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -38,7 +28,45 @@ export default function NewSong() {
       setBusy(false);
       return setError("Couldn't save the song. Try again.");
     }
-    router.push(`/songs/${song.id}?translate=1`);
+    router.push(`/songs/${song.id}${translate ? "?translate=1" : ""}`);
+  }
+
+  async function create() {
+    setBusy(true);
+    setError("");
+    await save(
+      {
+        id: newId(),
+        title: title.trim(),
+        sourceLang,
+        sections,
+        style: { ...DEFAULT_STYLE },
+        updatedAt: new Date().toISOString(),
+      },
+      true,
+    );
+  }
+
+  async function upload(file: File) {
+    setBusy(true);
+    setError("");
+    try {
+      const { importPro } = await import("@/lib/pro");
+      const imported = importPro(new Uint8Array(await file.arrayBuffer()), file.name);
+      const slides = imported.sections.flatMap((s) => s.slides);
+      if (slides.length === 0) throw new Error("No lyrics found in that file.");
+      const missing = slides.some((s) => !s.en.trim() || !s.es.trim());
+      const { bilingual: _bilingual, ...rest } = imported;
+      void _bilingual;
+      await save({ id: newId(), updatedAt: new Date().toISOString(), ...rest }, missing);
+    } catch (e) {
+      setBusy(false);
+      setError(
+        e instanceof Error && e.message.startsWith("No lyrics")
+          ? e.message
+          : "Couldn't read that file. Make sure it's a ProPresenter 7 .pro file.",
+      );
+    }
   }
 
   return (
@@ -85,9 +113,23 @@ export default function NewSong() {
               Chords and section labels (Verse, Chorus, Coro, Puente…) are detected automatically. Blank lines start a new slide.
             </p>
           </div>
-          <div className="rounded-lg border border-dashed border-border p-3 text-sm text-muted">
-            Uploading an existing <code>.pro</code> file is coming soon.
-          </div>
+          <label className="block cursor-pointer rounded-lg border border-dashed border-border p-3 text-sm hover:border-accent">
+            <span className="font-medium">Or upload a ProPresenter 7 .pro file</span>
+            <span className="block text-xs text-muted">
+              English-only, Spanish-only, or already bilingual. Missing lines are translated automatically.
+            </span>
+            <input
+              type="file"
+              accept=".pro"
+              className="sr-only"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) upload(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button className="btn btn-primary" disabled={busy || !title.trim() || slideCount === 0} onClick={create}>
             {busy ? "Saving…" : `Create song & translate (${slideCount} slides)`}

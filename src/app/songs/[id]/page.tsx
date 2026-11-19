@@ -134,6 +134,22 @@ function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song]);
 
+  async function downloadPro() {
+    if (!song) return;
+    try {
+      const { exportPro } = await import("@/lib/pro");
+      const bytes = exportPro(song);
+      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/octet-stream" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${song.title.replace(/[\\/:*?"<>|]/g, "").trim() || "Song"} - Bilingual.pro`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMessage((e as Error).message);
+    }
+  }
+
   async function remove() {
     if (!song || !confirm(`Delete “${song.title}”? This can't be undone.`)) return;
     await fetch(`/api/songs/${song.id}`, { method: "DELETE" });
@@ -156,7 +172,7 @@ function Editor() {
         <Link href={`/songs/${song.id}/print`} className="btn btn-sm">
           Print sheet
         </Link>
-        <button className="btn btn-sm" disabled title="Needs a sample .pro file first">
+        <button className="btn btn-sm" onClick={downloadPro}>
           Download .pro
         </button>
       </Header>
