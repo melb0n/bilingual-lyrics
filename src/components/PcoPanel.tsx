@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PcoSong } from "@/lib/pco";
 import { toPcoChordChart } from "@/lib/chordpro";
+import { playOrder } from "@/lib/repeats";
 import { friendlyError } from "@/lib/errors";
 import type { Song } from "@/lib/types";
 
@@ -100,6 +101,7 @@ export default function PcoPanel({ song, onSent, onClose }: Props) {
           newSong: target === "new" ? { title: song.title, author: song.artist } : undefined,
           details: send.details ? { bpm: song.bpm, meter: song.timeSignature, key: song.key } : undefined,
           chordChart: send.chart ? toPcoChordChart(song) : undefined,
+          sequence: send.chart && song.order?.length ? playOrder(song).map((s) => s.name) : undefined,
           files,
         }),
       });

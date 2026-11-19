@@ -11,6 +11,7 @@ interface SendBody {
   arrangementId: string | null;
   newSong?: { title: string; author?: string };
   details?: { bpm?: string; meter?: string; key?: string };
+  sequence?: string[];
   chordChart?: string;
   files?: { name: string; contentType: string; base64: string }[];
 }
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
     if (body.details?.meter) fields.meter = body.details.meter.slice(0, 10);
     if (body.details?.key) fields.chord_chart_key = body.details.key.slice(0, 10);
     if (body.chordChart) fields.chord_chart = body.chordChart.slice(0, 50000);
+    if (Array.isArray(body.sequence) && body.sequence.length) fields.sequence = body.sequence.slice(0, 100).map((s) => String(s).slice(0, 60));
     const arrangementId = await saveArrangement(songId, body.arrangementId, fields);
     done.push(body.arrangementId ? "Updated the arrangement" : "Created a \"Bilingual\" arrangement");
     if (fields.chord_chart) done.push("Chord chart");

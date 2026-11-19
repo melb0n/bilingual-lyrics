@@ -4,6 +4,7 @@
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { chordSegments, chordedText } from "./chordpro";
+import { orderLabel } from "./repeats";
 import { LANG_NAMES, otherLang, type Song } from "./types";
 
 const PAGE = { w: 612, h: 792 }; // US Letter
@@ -58,6 +59,24 @@ export async function songPdf(song: Song, withChords: boolean): Promise<Uint8Arr
   if (meta) {
     page.drawText(safe(meta, regular), { x: M, y: y - 10, size: 9.5, font: regular, color: rgb(0.4, 0.4, 0.4) });
     y -= 14;
+  }
+  if (song.order?.length) {
+    // Wrap the order line to the page width.
+    // "→" is not in the PDF standard fonts; "›" is.
+    const words = safe(`Order: ${orderLabel(song).replace(/→/g, "›")}`, regular).split(" ");
+    let line = "";
+    for (const w of words) {
+      const next = line ? `${line} ${w}` : w;
+      if (regular.widthOfTextAtSize(next, 9.5) > PAGE.w - 2 * M) {
+        page.drawText(line, { x: M, y: y - 10, size: 9.5, font: regular });
+        y -= 13;
+        line = w;
+      } else line = next;
+    }
+    if (line) {
+      page.drawText(line, { x: M, y: y - 10, size: 9.5, font: regular });
+      y -= 13;
+    }
   }
   y -= 10;
   page.drawText(LANG_NAMES[left].toUpperCase(), { x: M, y, size: 8, font: bold, color: rgb(0.45, 0.45, 0.45) });

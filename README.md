@@ -21,7 +21,10 @@ This guide is written so another church can set up its own copy from scratch.
   lines, transpose, and undo. A slide-by-slide view is also available.
 - **Chords**: add from a pasted/uploaded chart, or "Find & add chords automatically" (AI reads a public
   chart page and places its chords on your lines; your words are never changed).
-- **Song library** with cards or a details table, search and sorting.
+- **Repeated parts**: sections that repeat word for word (Coro, Puente…) can be combined so each is
+  stored, edited and translated once, with a **song order** (editable). The `.pro` gets each group
+  once plus a ProPresenter arrangement; Planning Center gets the sequence; print shows the order.
+- **Song library** with cards or a details table, search, filters and sorting.
 
 **Output**
 - **Download `.pro`** for ProPresenter 7: two named text boxes ("Main Language" / "Second Language"),

@@ -4,6 +4,7 @@ import ChordLine from "@/components/ChordLine";
 import SlidePreview from "@/components/SlidePreview";
 import { metaSummary } from "@/components/SongMetaCard";
 import { chordedText } from "@/lib/chordpro";
+import { orderLabel } from "@/lib/repeats";
 import { LANG_NAMES, otherLang, type Song } from "@/lib/types";
 import { useState } from "react";
 
@@ -26,6 +27,11 @@ export default function ReadOnlySong({ song }: { song: Song }) {
       <div className="card p-5">
         <div className="text-[11px] font-semibold uppercase tracking-widest text-muted">Song details</div>
         <h1 className="mt-1 text-xl font-semibold sm:text-2xl">{metaSummary(song)}</h1>
+        {song.order?.length ? (
+          <p className="mt-2 text-sm">
+            <span className="font-semibold">Order:</span> {orderLabel(song)}
+          </p>
+        ) : null}
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="card overflow-x-auto p-0">

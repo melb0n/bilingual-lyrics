@@ -114,6 +114,8 @@ export async function createSong(title: string, author?: string): Promise<string
 
 export interface ArrangementFields {
   name?: string;
+  /** Section names in the order they're sung (Planning Center "sequence"). */
+  sequence?: string[];
   bpm?: number;
   meter?: string;
   chord_chart?: string;

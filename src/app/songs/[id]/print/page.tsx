@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import ChordLine from "@/components/ChordLine";
 import { chordedText } from "@/lib/chordpro";
+import { orderLabel } from "@/lib/repeats";
 import { LANG_NAMES, otherLang, type Lang, type Slide, type Song } from "@/lib/types";
 
 function SlideText({ slide, lang, chords }: { slide: Slide; lang: Lang; chords: boolean }) {
@@ -71,6 +72,11 @@ export default function PrintSheet() {
         {song.translatedTitle && <span className="font-normal text-black/60"> / {song.translatedTitle}</span>}
       </h1>
       {meta && <p className="text-sm text-black/60">{meta}</p>}
+      {song.order?.length ? (
+        <p className="mt-1 text-sm">
+          <span className="font-semibold">Order:</span> {orderLabel(song)}
+        </p>
+      ) : null}
       <div className="mt-6 mb-2 grid grid-cols-2 gap-8 border-b border-black/20 pb-1 text-xs font-semibold uppercase tracking-wide text-black/60">
         <div>{LANG_NAMES[left]}</div>
         <div>{LANG_NAMES[right]}</div>

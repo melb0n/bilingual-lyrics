@@ -76,6 +76,7 @@ export function boxNameFor(boxNames: SongStyle["boxNames"], role: "main" | "seco
 
 export interface ImportedSong {
   key?: string;
+  order?: string[];
   title: string;
   sourceLang: Lang;
   sections: Section[];
@@ -180,7 +181,8 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   }) as Obj;
 
   const cueById = new Map<string, Obj>((doc.cues ?? []).map((c: Obj) => [c.uuid?.string, c]));
-  const groups: { name: string; cueIds: string[] }[] = (doc.cue_groups ?? []).map((g: Obj) => ({
+  const groups: { name: string; cueIds: string[]; groupId?: string }[] = (doc.cue_groups ?? []).map((g: Obj) => ({
+    groupId: g.group?.uuid?.string,
     name: g.group?.name || "Slides",
     cueIds: (g.cue_identifiers ?? []).map((u: Obj) => u.string),
   }));
@@ -189,6 +191,7 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   if (ungrouped.length) groups.push({ name: "Slides", cueIds: ungrouped });
 
   const raw = groups.map((g) => ({
+    groupId: g.groupId,
     name: g.name,
     // Keep slides with words, and slides that are only chords (an intro, a turnaround).
     slides: g.cueIds.map((id) => slideBoxes(cueById.get(id))).filter((boxes) => boxes.some((b) => b.text.trim() || b.chords)),
@@ -217,10 +220,15 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
     : undefined;
   const singleLang: Lang = detectLang(allSlides.map((b) => b.map((x) => x.text).join("\n")).join("\n")) ?? "en";
 
+  const sectionIdByGroup = new Map<string, string>();
   const sections: Section[] = raw
     .filter((g) => g.slides.length)
     .map((g) => ({
-      id: newId(),
+      id: (() => {
+        const id = newId();
+        if (g.groupId) sectionIdByGroup.set(g.groupId, id);
+        return id;
+      })(),
       name: g.name,
       slides: g.slides.map((boxes): Slide => {
         const slide: Slide = { id: newId(), en: "", es: "" };
@@ -261,7 +269,13 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   const title = fileName.replace(/\.pro$/i, "").replace(/\s*-\s*bilingual$/i, "").trim() || doc.name || "Untitled";
   // Chords in the file are written in the song's original key.
   const key = musicToKey(doc.music?.original);
-  return { title, sourceLang, sections, style, bilingual, ...(key ? { key } : {}) };
+  // The selected arrangement (or the first) becomes the song order.
+  const arrangements = (doc.arrangements ?? []) as Obj[];
+  const arr = arrangements.find((x) => x.uuid?.string === doc.selected_arrangement?.string) ?? arrangements[0];
+  const order = ((arr?.group_identifiers ?? []) as Obj[])
+    .map((g) => sectionIdByGroup.get(g.string))
+    .filter((id): id is string => Boolean(id));
+  return { title, sourceLang, sections, style, bilingual, ...(key ? { key } : {}), ...(order.length ? { order } : {}) };
 }
 
 /* ------------------------------- Export ------------------------------- */
@@ -358,6 +372,7 @@ export function exportPro(song: Song): Uint8Array {
       ? slide.chords?.[lang]
       : undefined;
 
+  const groupIdBySection = new Map<string, Obj>();
   for (const section of song.sections) {
     const ids: Obj[] = [];
     for (const slide of section.slides) {
@@ -400,9 +415,11 @@ export function exportPro(song: Song): Uint8Array {
     }
     const key = hotKeyFor(section.name);
     const color = GROUP_COLORS.find(([re]) => re.test(section.name))?.[1];
+    const groupUuid = uuid();
+    groupIdBySection.set(section.id, groupUuid);
     cueGroups.push({
       group: {
-        uuid: uuid(),
+        uuid: groupUuid,
         name: section.name,
         ...(color ? { color } : {}),
         ...(key ? { hotKey: { code: `KEY_CODE_ANSI_${key}` } } : {}),
@@ -413,7 +430,12 @@ export function exportPro(song: Song): Uint8Array {
     });
   }
 
+  // Song order → a ProPresenter arrangement (each group is stored once, the arrangement repeats it).
+  const order = (song.order ?? []).map((id) => groupIdBySection.get(id)).filter((g): g is Obj => Boolean(g));
+  const arrangement = order.length ? { uuid: uuid(), name: "Song order", group_identifiers: order } : null;
+
   const obj = {
+    ...(arrangement ? { arrangements: [arrangement], selected_arrangement: arrangement.uuid } : {}),
     application_info: clone(template.application_info),
     uuid: uuid(),
     name: song.title,

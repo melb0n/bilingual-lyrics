@@ -12,6 +12,7 @@ import TranslationSearchPanel from "@/components/TranslationSearchPanel";
 import ChordChartPanel from "@/components/ChordChartPanel";
 import PcoPanel from "@/components/PcoPanel";
 import PcoUpdatePanel from "@/components/PcoUpdatePanel";
+import SongOrderBar from "@/components/SongOrderBar";
 import ReadOnlySong from "@/components/ReadOnlySong";
 import { canEdit, useMe } from "@/lib/useMe";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
@@ -352,6 +353,7 @@ function Editor() {
               {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
             </button>
           </div>
+          <SongOrderBar song={song} onChange={(next) => update(() => next)} />
           {pcoUpdate && (
             <PcoUpdatePanel song={song} onApply={(next) => update(() => next)} onClose={() => setPcoUpdate(false)} />
           )}

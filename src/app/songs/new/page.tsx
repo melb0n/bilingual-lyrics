@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import { canEdit, useMe } from "@/lib/useMe";
 import { combine, readDoc, rechunk } from "@/lib/align";
 import { parseSong } from "@/lib/parse";
+import { combineRepeats, countRepeats } from "@/lib/repeats";
 import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
 
 type MetaField = "title" | "translatedTitle" | "artist" | "key" | "bpm" | "timeSignature";
@@ -27,6 +28,7 @@ export default function NewSong() {
   const [linesPerSlide, setLinesPerSlide] = useState(2);
   const [text, setText] = useState("");
   const [secondText, setSecondText] = useState("");
+  const [combine_, setCombine] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,6 +49,10 @@ export default function NewSong() {
   const isAuto = (f: MetaField) => overrides[f] === undefined && Boolean(detected[f]);
   const title = meta("title");
   const slideCount = sections.reduce((n, s) => n + s.slides.length, 0);
+  const repeatCount = useMemo(
+    () => countRepeats({ id: "", title: "", sourceLang, sections, style: DEFAULT_STYLE, updatedAt: "" }),
+    [sections, sourceLang],
+  );
 
   async function save(song: Song, translate: boolean) {
     const res = await fetch("/api/songs", {
@@ -85,6 +91,7 @@ export default function NewSong() {
       song.translatedTitle = meta("translatedTitle") || second.title;
       song = rechunk(song, linesPerSlide);
     }
+    if (combine_) song = combineRepeats(song).song;
     await save(song, !hasSecond);
   }
 
@@ -241,6 +248,12 @@ export default function NewSong() {
 
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-muted">Preview</h2>
+          {repeatCount > 0 && (
+            <label className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2 text-sm">
+              <input type="checkbox" checked={combine_} onChange={(e) => setCombine(e.target.checked)} />
+              Combine repeated sections ({repeatCount} repeat{repeatCount === 1 ? "" : "s"}): keep each part once, with a song order
+            </label>
+          )}
           {sections.length === 0 && <p className="text-sm text-muted">Slides will appear here as you paste.</p>}
           {sections.map((s) => (
             <div key={s.id} className="card space-y-2 p-4">

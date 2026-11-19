@@ -52,6 +52,11 @@ export interface Song {
   translatedTitle?: string;
   /** Musical key, e.g. "G" or "Bb". */
   key?: string;
+  /**
+   * Song order: section ids in the order they are sung (a section can appear many times).
+   * When set, each repeated part is stored once in `sections`. Missing = sections in their stored order.
+   */
+  order?: string[];
   /** Where this song was last sent in Planning Center Services. */
   pco?: { songId: string; arrangementId: string; url: string; sentAt?: string; importedAt?: string };
   /** Key before any transposing, so it can be reset. */
