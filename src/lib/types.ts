@@ -27,7 +27,7 @@ export interface SongStyle {
   background: string;
   topLang: Lang;
   /** Which text boxes carry chords in the .pro file (for the stage display). Default "main". */
-  stageChords?: "main" | "both" | "none";
+  stageChords?: "main" | "second" | "both" | "none";
 }
 
 export interface Song {

@@ -2,7 +2,17 @@ import { LANG_NAMES, type Lang, type SongStyle } from "@/lib/types";
 
 const FONTS = ["Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS", "Georgia", "Times New Roman", "Montserrat", "Open Sans"];
 
-export default function StylePanel({ style, onChange }: { style: SongStyle; onChange: (s: SongStyle) => void }) {
+export default function StylePanel({
+  style,
+  onChange,
+  mainLang,
+}: {
+  style: SongStyle;
+  onChange: (s: SongStyle) => void;
+  mainLang?: Lang;
+}) {
+  const main = mainLang ?? "en";
+  const second: Lang = main === "en" ? "es" : "en";
   const set = <K extends keyof SongStyle>(key: K, value: SongStyle[K]) => onChange({ ...style, [key]: value });
   return (
     <div className="card space-y-3 p-4">
@@ -54,10 +64,14 @@ export default function StylePanel({ style, onChange }: { style: SongStyle; onCh
           value={style.stageChords ?? "main"}
           onChange={(e) => set("stageChords", e.target.value as SongStyle["stageChords"])}
         >
-          <option value="main">Original language only</option>
+          <option value="main">{LANG_NAMES[main]} only (main)</option>
+          <option value="second">{LANG_NAMES[second]} only</option>
           <option value="both">Both languages</option>
           <option value="none">No chords</option>
         </select>
+        <p className="mt-1 text-xs text-muted">
+          A language only gets chords if it has them in the editor. Use “Lock chords” to copy them across.
+        </p>
       </div>
       <p className="text-xs text-muted">Background is for preview only; ProPresenter uses your theme or media.</p>
     </div>

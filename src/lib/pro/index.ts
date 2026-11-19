@@ -283,7 +283,11 @@ export function exportPro(song: Song): Uint8Array {
   const cueGroups: Obj[] = [];
   const stageChords = style.stageChords ?? "main";
   const chordsFor = (slide: Slide, lang: Lang) =>
-    stageChords === "both" || (stageChords === "main" && lang === song.sourceLang) ? slide.chords?.[lang] : undefined;
+    stageChords === "both" ||
+    (stageChords === "main" && lang === song.sourceLang) ||
+    (stageChords === "second" && lang !== song.sourceLang)
+      ? slide.chords?.[lang]
+      : undefined;
 
   for (const section of song.sections) {
     const ids: Obj[] = [];

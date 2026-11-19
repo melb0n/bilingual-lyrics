@@ -369,7 +369,7 @@ function Editor() {
           />
           <div className="grid gap-4 md:grid-cols-2">
             {selectedSlide && <SlidePreview slide={selectedSlide} style={song.style} />}
-            <StylePanel style={song.style} onChange={(style) => update((s) => ({ ...s, style }))} />
+            <StylePanel style={song.style} mainLang={song.sourceLang} onChange={(style) => update((s) => ({ ...s, style }))} />
           </div>
           <div className="flex justify-end">
             <button className="btn btn-sm text-red-600" onClick={remove}>
@@ -487,7 +487,7 @@ function Editor() {
 
         <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
           {selectedSlide && <SlidePreview slide={selectedSlide} style={song.style} />}
-          <StylePanel style={song.style} onChange={(style) => update((s) => ({ ...s, style }))} />
+          <StylePanel style={song.style} mainLang={song.sourceLang} onChange={(style) => update((s) => ({ ...s, style }))} />
         </aside>
       </main>
       )}
