@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Storage health check for setup troubleshooting. Reachable before sign-in (under /api/auth/),
- * so it returns only timings and yes/no flags — never song or user data.
+ * Storage health check for troubleshooting (admins only). Returns only timings and yes/no flags.
  */
 async function step<T>(label: string, ms: number, work: () => Promise<T>) {
   const start = Date.now();
@@ -20,7 +20,9 @@ async function step<T>(label: string, ms: number, work: () => Promise<T>) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const allowed = await requireRole(req, "admin");
+  if (allowed instanceof NextResponse) return allowed;
   const env = {
     NETLIFY: Boolean(process.env.NETLIFY),
     NETLIFY_BLOBS_CONTEXT: Boolean(process.env.NETLIFY_BLOBS_CONTEXT),
