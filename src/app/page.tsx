@@ -79,6 +79,11 @@ export default function Library() {
     <>
       <Header>
         {canEdit(me) && (
+          <Link href="/import" className="btn btn-sm">
+            Import from Planning Center
+          </Link>
+        )}
+        {canEdit(me) && (
           <Link href="/songs/new" className="btn btn-primary btn-sm">
             + New song
           </Link>

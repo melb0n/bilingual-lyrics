@@ -131,7 +131,10 @@ export default function PcoPanel({ song, onSent, onClose }: Props) {
             {song.pco && (
               <>
                 {" "}
-                Last sent {new Date(song.pco.sentAt).toLocaleDateString()} —{" "}
+                {song.pco.sentAt
+                  ? `Last sent ${new Date(song.pco.sentAt).toLocaleDateString()}`
+                  : `Imported from Planning Center${song.pco.importedAt ? ` ${new Date(song.pco.importedAt).toLocaleDateString()}` : ""}`}{" "}
+                —{" "}
                 <a href={song.pco.url} target="_blank" rel="noopener noreferrer" className="text-accent underline">
                   open in Planning Center
                 </a>

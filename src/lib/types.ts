@@ -53,7 +53,7 @@ export interface Song {
   /** Musical key, e.g. "G" or "Bb". */
   key?: string;
   /** Where this song was last sent in Planning Center Services. */
-  pco?: { songId: string; arrangementId: string; url: string; sentAt: string };
+  pco?: { songId: string; arrangementId: string; url: string; sentAt?: string; importedAt?: string };
   /** Key before any transposing, so it can be reset. */
   originalKey?: string;
   artist?: string;
@@ -79,6 +79,8 @@ export interface SongSummary {
   hasChords: boolean;
   /** Slides that are missing the second language. */
   untranslatedSlides: number;
+  /** Linked Planning Center song, if any. */
+  pcoSongId?: string;
 }
 
 export function summarize(song: Song): SongSummary {
@@ -98,6 +100,7 @@ export function summarize(song: Song): SongSummary {
     slideCount: slides.length,
     hasChords: slides.some((sl) => sl.chords && Object.values(sl.chords).some(Boolean)),
     untranslatedSlides: slides.filter((sl) => sl[song.sourceLang].trim() && !sl[other].trim()).length,
+    pcoSongId: song.pco?.songId,
   };
 }
 

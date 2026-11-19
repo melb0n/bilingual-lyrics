@@ -178,3 +178,78 @@ export async function attachFile(
 }
 
 export const songUrl = (songId: string) => `https://services.planningcenteronline.com/songs/${songId}`;
+
+export interface PcoLibraryPage {
+  songs: { id: string; title: string; author: string | null; ccliNumber: number | null }[];
+  total: number;
+}
+
+/** One page of the Services song library (optionally filtered by title), alphabetical. */
+export async function libraryPage(offset: number, title?: string): Promise<PcoLibraryPage> {
+  const q = new URLSearchParams({ per_page: "50", offset: String(Math.max(0, offset)), order: "title" });
+  if (title) q.set("where[title]", title);
+  const r = await pco<{
+    data: Resource<{ title: string; author: string | null; ccli_number: number | null; hidden?: boolean }>[];
+    meta?: { total_count?: number };
+  }>(`/songs?${q.toString()}`);
+  return {
+    songs: r.data
+      .filter((s) => !s.attributes.hidden)
+      .map((s) => ({ id: s.id, title: s.attributes.title, author: s.attributes.author, ccliNumber: s.attributes.ccli_number })),
+    total: r.meta?.total_count ?? r.data.length,
+  };
+}
+
+export interface PcoSongForImport {
+  songId: string;
+  title: string;
+  author: string | null;
+  ccliNumber: number | null;
+  arrangementId: string | null;
+  arrangementName: string | null;
+  /** The arrangement's chord chart (lyrics with chords), or its plain lyrics, or "". */
+  text: string;
+  hasChords: boolean;
+  bpm: number | null;
+  meter: string | null;
+  key: string | null;
+}
+
+/**
+ * A song with the best arrangement to import: one named "Bilingual" if present (sent from this site),
+ * else the first with a chord chart, else the first with lyrics.
+ */
+export async function songForImport(songId: string): Promise<PcoSongForImport> {
+  const song = await pco<{ data: Resource<{ title: string; author: string | null; ccli_number: number | null }> }>(`/songs/${songId}`);
+  const arrs = await pco<{
+    data: Resource<{
+      name: string;
+      chord_chart: string | null;
+      lyrics: string | null;
+      bpm: number | null;
+      meter: string | null;
+      chord_chart_key: string | null;
+    }>[];
+  }>(`/songs/${songId}/arrangements?per_page=25`);
+  const has = (s: string | null | undefined) => Boolean(s && s.trim());
+  const pick =
+    arrs.data.find((a) => /biling/i.test(a.attributes.name) && has(a.attributes.chord_chart)) ??
+    arrs.data.find((a) => has(a.attributes.chord_chart)) ??
+    arrs.data.find((a) => has(a.attributes.lyrics)) ??
+    arrs.data[0];
+  const a = pick?.attributes;
+  const text = has(a?.chord_chart) ? a!.chord_chart! : has(a?.lyrics) ? a!.lyrics! : "";
+  return {
+    songId,
+    title: song.data.attributes.title,
+    author: song.data.attributes.author,
+    ccliNumber: song.data.attributes.ccli_number,
+    arrangementId: pick?.id ?? null,
+    arrangementName: a?.name ?? null,
+    text,
+    hasChords: has(a?.chord_chart),
+    bpm: a?.bpm ?? null,
+    meter: a?.meter ?? null,
+    key: a?.chord_chart_key ?? null,
+  };
+}

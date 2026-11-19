@@ -135,6 +135,7 @@ export function parseSong(text: string, sourceLang: Lang, linesPerSlide = 2): Pa
     }
     if (skipBlock) continue;
     if (trimmed.startsWith("#")) continue;
+    if (/^(COLUMN_BREAK|PAGE_BREAK)$/i.test(trimmed)) continue; // Planning Center chart layout markers
 
     if (!trimmed) {
       flushStanza();

@@ -30,6 +30,13 @@ A private tool for turning worship songs into bilingual ProPresenter slides
   github.com/greyshirtguy/pro7chordeditorwin, so they can be shown on a stage display with the stage
   layout's "Chords" option. Choose which language's box carries chords in the Style panel.
 
+## Import from Planning Center
+"Import from Planning Center" (song library, Editors and Admins) browses the PCO Services song library,
+lets you tick songs, and imports each one's chord chart (or lyrics), key, BPM and time signature.
+It picks a "Bilingual" arrangement if present, else the first with a chord chart, else the first with
+lyrics. Imported songs stay linked, so "Send to Planning Center" updates the same song. Songs already
+on the site are marked.
+
 ## Sign-in and roles (Planning Center)
 Team members sign in with their Planning Center account; only people in your church's Planning Center
 organization are let in. Roles: **Admin** (people, roles, settings), **Editor** (songs, AI tools, Planning
