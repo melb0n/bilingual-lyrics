@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, describeApiError, MODEL } from "@/lib/anthropic";
+import { AI_PROVIDER, GeminiError, geminiJson } from "@/lib/gemini";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -57,6 +58,38 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n\n");
 
+  const norm = (t: string) => t.replace(/\s+/g, " ").trim();
+  // Keep AI-placed chords only when they match the translation word for word.
+  const keepChords = (translations: string[], chords: string[]) =>
+    translations.map((t, i) => {
+      const c = chords[i] ?? "";
+      return withChords && c.includes("[") && norm(stripChords(c)) === norm(t) ? c : "";
+    });
+
+  if (AI_PROVIDER === "gemini") {
+    try {
+      const { data } = await geminiJson<{ translations: string[]; chords: string[] }>({
+        system: SYSTEM,
+        prompt,
+        schema: {
+          type: "object",
+          properties: {
+            translations: { type: "array", items: { type: "string" } },
+            chords: { type: "array", items: { type: "string" } },
+          },
+          required: ["translations", "chords"],
+        },
+      });
+      if (!Array.isArray(data.translations) || data.translations.length !== slides.length) {
+        return NextResponse.json({ error: "Translation came back incomplete. Try again." }, { status: 502 });
+      }
+      return NextResponse.json({ translations: data.translations, chords: keepChords(data.translations, data.chords ?? []) });
+    } catch (error) {
+      if (error instanceof GeminiError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "ANTHROPIC_API_KEY isn't set. Add it in Netlify's environment variables." },
@@ -83,13 +116,7 @@ export async function POST(req: Request) {
     if (!out || out.translations.length !== slides.length) {
       return NextResponse.json({ error: "Translation came back incomplete. Try again." }, { status: 502 });
     }
-    const norm = (t: string) => t.replace(/\s+/g, " ").trim();
-    // Keep AI-placed chords only when they match the translation word for word.
-    const chords = out.translations.map((t, i) => {
-      const c = out.chords[i] ?? "";
-      return withChords && c.includes("[") && norm(stripChords(c)) === norm(t) ? c : "";
-    });
-    return NextResponse.json({ translations: out.translations, chords });
+    return NextResponse.json({ translations: out.translations, chords: keepChords(out.translations, out.chords) });
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {
       return NextResponse.json({ error: "ANTHROPIC_API_KEY is missing or invalid." }, { status: 500 });

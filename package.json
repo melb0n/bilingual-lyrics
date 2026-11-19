@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
+    "@google/genai": "^3.6.1",
     "@netlify/blobs": "^11.1.9",
     "fflate": "^0.8.2",
     "next": "^15.5.29",

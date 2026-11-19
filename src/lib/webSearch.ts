@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, describeApiError, MODEL } from "@/lib/anthropic";
+import { AI_PROVIDER, GeminiError, geminiJson, groundingSources } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 
 const client = anthropic;
@@ -21,6 +22,27 @@ export async function searchAndReport<T extends { sources?: Source[] }>(
   serverTools: Anthropic.ToolUnion[] = [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
   maxTokens = 4000,
 ): Promise<T | NextResponse> {
+  if (AI_PROVIDER === "gemini") {
+    const readsPages = serverTools.some((t) => "type" in t && String(t.type).startsWith("web_fetch"));
+    try {
+      const { data, response } = await geminiJson<T>({
+        system: `${system}\n\n(Instead of calling a tool named ${reportTool.name}, give that same information as the JSON object described at the end.)`,
+        prompt,
+        schema: reportTool.input_schema,
+        tools: readsPages ? "url" : "search",
+      });
+      if (!("sources" in data) || !Array.isArray(data.sources)) return data;
+      // Prefer pages the model named; fall back to the pages Google Search actually used.
+      const named = data.sources.filter((s) => /^https?:\/\//i.test(s?.url ?? ""));
+      const sources = (named.length ? named : groundingSources(response))
+        .slice(0, 6)
+        .map((s) => ({ title: String(s.title ?? "").slice(0, 200), url: String(s.url).slice(0, 500) }));
+      return { ...data, sources };
+    } catch (error) {
+      if (error instanceof GeminiError) return NextResponse.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY isn't set. Add it in Netlify's environment variables." }, { status: 500 });
   }

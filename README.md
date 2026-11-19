@@ -46,6 +46,11 @@ ProPresenter 18.4. Always open exported files in ProPresenter and check them bef
 
    AI requests always go straight to api.anthropic.com with this key (billed by Anthropic). Netlify's
    AI Gateway, if enabled, is not used, so AI calls don't consume Netlify credits.
+
+   **To use Google Gemini instead**, set `AI_PROVIDER=gemini` and `GEMINI_API_KEY` (from
+   aistudio.google.com/apikey). Optional: `GEMINI_MODEL` (default `gemini-3.8-flash`). Translation uses
+   structured JSON; web search uses Google Search grounding; reading chord charts uses URL context.
+   Sign in and open `/api/ai-status` to see which provider is active and whether its key works.
 3. Trigger a deploy. Netlify Blobs needs no setup.
 
 ## Local development

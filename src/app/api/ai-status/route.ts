@@ -1,14 +1,35 @@
 import { NextResponse } from "next/server";
 import { anthropic, MODEL } from "@/lib/anthropic";
+import { AI_PROVIDER, GEMINI_MODEL, gemini } from "@/lib/gemini";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Shows where AI requests go, without revealing the key. Signed-in users only (see middleware).
- * Makes one free request (list models) to prove the key works against Anthropic directly.
+ * Shows which AI service the site uses and checks its key with one free request,
+ * without revealing the key. Signed-in users only (see middleware).
  */
 export async function GET() {
+  if (AI_PROVIDER === "gemini") {
+    const key = process.env.GEMINI_API_KEY ?? "";
+    let liveCheck: string;
+    try {
+      const model = await gemini().models.get({ model: GEMINI_MODEL });
+      liveCheck = `OK: Google answered directly (${model.displayName ?? model.name ?? GEMINI_MODEL})`;
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      liveCheck = `Failed${status ? ` (HTTP ${status})` : ""}: ${(error as Error).message.slice(0, 200)}`;
+    }
+    return NextResponse.json({
+      provider: "gemini",
+      requestsGoTo: "https://generativelanguage.googleapis.com (Google AI Studio / Gemini API)",
+      model: GEMINI_MODEL,
+      geminiApiKeySet: Boolean(key),
+      netlifyAiGatewayUsed: false,
+      liveCheck,
+    });
+  }
+
   const key = process.env.ANTHROPIC_API_KEY ?? "";
   const gatewayUrl = process.env.ANTHROPIC_BASE_URL;
   let liveCheck: string;
@@ -20,6 +41,7 @@ export async function GET() {
     liveCheck = `Failed${status ? ` (HTTP ${status})` : ""}: ${(error as Error).message.slice(0, 200)}`;
   }
   return NextResponse.json({
+    provider: "anthropic",
     requestsGoTo: anthropic.baseURL,
     model: MODEL,
     apiKeySet: Boolean(key),
