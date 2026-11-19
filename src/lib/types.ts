@@ -39,7 +39,7 @@ export interface SongStyle {
    * How the two text boxes are named in the .pro, so a stage display layout can show just one
    * ("Current Slide" text, matching element name). Default "role": "Main Language" / "Second Language".
    */
-  boxNames?: "role" | "language";
+  boxNames?: "role" | "language" | "main-secondary";
 }
 
 export interface Song {

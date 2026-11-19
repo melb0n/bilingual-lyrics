@@ -12,7 +12,8 @@ import { keyToMusic, musicToKey, ranges } from "./chords";
 import schema from "./schema.json";
 import template from "./template.json";
 
-const root = protobuf.Root.fromJSON(schema as protobuf.INamespace);
+export const proRoot = protobuf.Root.fromJSON(schema as protobuf.INamespace);
+const root = proRoot;
 const Presentation = root.lookupType("rv.data.Presentation");
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -63,6 +64,13 @@ const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
 
 /** Text box names, so a stage layout can show one language ("Current Slide" → element matching name). */
 export const BOX_NAMES = { main: "Main Language", second: "Second Language" } as const;
+
+/** The name of the main-language or second-language box for a given naming setting. */
+export function boxNameFor(boxNames: SongStyle["boxNames"], role: "main" | "second", lang: Lang): string {
+  if (boxNames === "language") return LANG_NAMES[lang];
+  if (boxNames === "main-secondary") return role === "main" ? "Main" : "Secondary";
+  return BOX_NAMES[role];
+}
 
 /* ------------------------------- Import ------------------------------- */
 
@@ -201,7 +209,7 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
     if (topName && /^(espa[nñ]ol|spanish)$/.test(topName)) topLang = "es";
   }
   // Boxes named by role: the "Main Language" box is the song's original language.
-  const firstNamed = allSlides.flatMap((b) => b.map((x, i) => ({ x, i, n: b.length }))).find(({ x }) => x.name === BOX_NAMES.main);
+  const firstNamed = allSlides.flatMap((b) => b.map((x, i) => ({ x, i, n: b.length }))).find(({ x }) => x.name === BOX_NAMES.main || x.name === "Main");
   const mainFromNames: Lang | undefined = firstNamed
     ? firstNamed.i === 0
       ? topLang
@@ -278,7 +286,7 @@ function hotKeyFor(name: string): string | null {
   return null;
 }
 
-function textElement(
+export function textElement(
   name: string,
   plainText: string,
   chorded: string | undefined,
@@ -304,17 +312,25 @@ function textElement(
   if (style.scaleToFit) t.element.text.scale_behavior = "SCALE_BEHAVIOR_SCALE_FONT_UP_DOWN";
   t.element.text.attributes.text_solid_fill = { red: r / 255, green: g / 255, blue: b / 255, alpha: 1 };
   let text = plainText;
+  const customAttributes: Obj[] = [];
+  let chordAttrs: Obj[] = [];
   if (chorded) {
     // Chords for the stage display: each over its stretch of the line, as ProPresenter/MultiTracks write them.
     const parsed = chordMarks(chorded);
     text = parsed.text;
     const written = ranges(text, parsed.marks.map(({ pos, chord }) => ({ at: pos, name: chord })));
-    if (written.length)
-      t.element.text.attributes.custom_attributes = written.map((r) => ({
-        range: { start: r.start, end: r.end },
-        chord: r.name,
-      }));
+    chordAttrs = written.map((r) => ({ range: { start: r.start, end: r.end }, chord: r.name }));
   }
+  // Whole-text attributes, as ProPresenter writes them: the font before scaling, and capitals.
+  const whole = { start: 0, end: text.length };
+  if (style.scaleToFit) {
+    customAttributes.push({ range: whole, original_font_size: style.fontSize });
+    customAttributes.push({ range: whole, original_font: clone(t.element.text.attributes.font) });
+  }
+  if (style.allCaps) customAttributes.push({ range: whole, capitalization: "CAPITALIZATION_ALL_CAPS" });
+  // Chord entries always come after every other custom attribute.
+  if (customAttributes.length || chordAttrs.length)
+    t.element.text.attributes.custom_attributes = [...customAttributes, ...chordAttrs];
   const rtf = textToRtf(text, {
     bold: style.bold,
     postScriptName: ps,
@@ -334,12 +350,7 @@ export function exportPro(song: Song): Uint8Array {
   const cues: Obj[] = [];
   const cueGroups: Obj[] = [];
   const stageChords = style.stageChords ?? "main";
-  const boxName = (lang: Lang) =>
-    style.boxNames === "language"
-      ? LANG_NAMES[lang]
-      : lang === song.sourceLang
-        ? BOX_NAMES.main
-        : BOX_NAMES.second;
+  const boxName = (lang: Lang) => boxNameFor(style.boxNames, lang === song.sourceLang ? "main" : "second", lang);
   const chordsFor = (slide: Slide, lang: Lang) =>
     stageChords === "both" ||
     (stageChords === "main" && lang === song.sourceLang) ||

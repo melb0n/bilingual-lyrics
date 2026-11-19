@@ -14,6 +14,16 @@ export default function StylePanel({
   const main = mainLang ?? "en";
   const second: Lang = main === "en" ? "es" : "en";
   const set = <K extends keyof SongStyle>(key: K, value: SongStyle[K]) => onChange({ ...style, [key]: value });
+  async function downloadTheme() {
+    const { exportThemeZip } = await import("@/lib/pro/theme");
+    const bytes = await exportThemeZip("Bilingual Lyrics", style, main);
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Bilingual Lyrics (ProPresenter theme).zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-center gap-2">
@@ -112,6 +122,7 @@ export default function StylePanel({
           onChange={(e) => set("boxNames", e.target.value as SongStyle["boxNames"])}
         >
           <option value="role">“Main Language” / “Second Language”</option>
+          <option value="main-secondary">“Main” / “Secondary”</option>
           <option value="language">
             “{LANG_NAMES[main]}” / “{LANG_NAMES[second]}”
           </option>
@@ -122,6 +133,15 @@ export default function StylePanel({
         </p>
       </div>
       <p className="text-xs text-muted">Background is for preview only; ProPresenter uses your theme or media.</p>
+      <div className="border-t border-border pt-3">
+        <button type="button" className="btn btn-sm w-full" onClick={downloadTheme}>
+          Download ProPresenter theme with this style
+        </button>
+        <p className="mt-1 text-xs text-muted">
+          A “Bilingual Lyrics” theme whose text boxes match this style and box names. Unzip it into ProPresenter&apos;s
+          Themes folder, then restart ProPresenter.
+        </p>
+      </div>
     </div>
   );
 }
