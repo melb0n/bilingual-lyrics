@@ -38,6 +38,7 @@ export function authorizeUrl(req: Request, state: string): string {
 
 export async function exchangeCode(req: Request, code: string): Promise<string> {
   const res = await fetch(TOKEN, {
+    signal: AbortSignal.timeout(7000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -65,8 +66,8 @@ interface Me {
 export async function fetchMe(accessToken: string): Promise<Me> {
   const headers = { Authorization: `Bearer ${accessToken}` };
   const [meRes, orgRes] = await Promise.all([
-    fetch(`${API}/people/v2/me?include=emails`, { headers }),
-    fetch(`${API}/people/v2`, { headers }),
+    fetch(`${API}/people/v2/me?include=emails`, { headers, signal: AbortSignal.timeout(7000) }),
+    fetch(`${API}/people/v2`, { headers, signal: AbortSignal.timeout(7000) }),
   ]);
   if (!meRes.ok) throw new Error(`Couldn't read your Planning Center profile (${meRes.status}).`);
   if (!orgRes.ok) throw new Error(`Couldn't read your Planning Center organization (${orgRes.status}).`);
@@ -92,7 +93,7 @@ export async function allowedOrgId(): Promise<string | null> {
   if (process.env.PCO_ORGANIZATION_ID) return process.env.PCO_ORGANIZATION_ID;
   if (process.env.PCO_APP_ID && process.env.PCO_SECRET) {
     const auth = "Basic " + Buffer.from(`${process.env.PCO_APP_ID}:${process.env.PCO_SECRET}`).toString("base64");
-    const res = await fetch(`${API}/services/v2`, { headers: { Authorization: auth } });
+    const res = await fetch(`${API}/services/v2`, { headers: { Authorization: auth }, signal: AbortSignal.timeout(5000) });
     if (res.ok) return ((await res.json()) as { data: { id: string } }).data.id;
   }
   return null;
