@@ -34,8 +34,12 @@ export interface Song {
   sourceLang: Lang;
   sections: Section[];
   style: SongStyle;
+  /** Title in the second language, e.g. "Something Good" for "Todo Lo Haces Bien". */
+  translatedTitle?: string;
   /** Musical key, e.g. "G" or "Bb". */
   key?: string;
+  /** Key before any transposing, so it can be reset. */
+  originalKey?: string;
   artist?: string;
   updatedAt: string;
 }

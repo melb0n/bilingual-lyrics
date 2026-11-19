@@ -7,8 +7,11 @@ A private tool for turning worship songs into bilingual ProPresenter slides
 - **Team password** sign-in (shared by the worship team)
 - **New song:** paste lyrics or a chord chart; chords are stripped and sections
   (Verse, Chorus, Coro, Puente…) are detected; choose lines per slide
-- **AI translation** of the missing language, one section at a time, then
-  side-by-side editing with per-slide and per-section re-translate
+- **Full-song editor** (default): the whole song in each language side by side (ChordPro or plain),
+  lined up automatically by section and line, with mismatch warnings, "lock chords" to copy chords
+  from one language to the other, slide breaks every N lines, transpose, scroll sync, and undo
+- **Paste both languages at once** when creating a song, or let the AI translate the missing one
+- **Slide-by-slide view** with per-slide and per-section re-translate
 - **Slide preview** and **style** settings (font, size, color, which language on top)
 - **Printable bilingual lyric sheet** (Print / Save as PDF)
 - **Song library** with search, stored in Netlify Blobs

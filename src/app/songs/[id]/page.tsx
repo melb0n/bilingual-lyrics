@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import FullSongEditor from "@/components/FullSongEditor";
 import Header from "@/components/Header";
 import SlidePreview from "@/components/SlidePreview";
 import StylePanel from "@/components/StylePanel";
@@ -108,9 +109,36 @@ function Editor() {
     return () => clearTimeout(t);
   }, [saveState, song]);
 
+  // Undo history: edits within a second of each other count as one step.
+  const history = useRef<Song[]>([]);
+  const lastPush = useRef(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [view, setView] = useState<"full" | "slides">("full");
+
   const update = useCallback((fn: (s: Song) => Song) => {
-    setSong((s) => (s ? fn(s) : s));
+    const current = songRef.current;
+    if (!current) return;
+    const now = Date.now();
+    if (now - lastPush.current > 1000) {
+      history.current.push(current);
+      if (history.current.length > 100) history.current.shift();
+      setCanUndo(true);
+    }
+    lastPush.current = now;
+    const next = fn(current);
+    songRef.current = next;
+    setSong(next);
     setSaveState("dirty");
+  }, []);
+
+  const undo = useCallback(() => {
+    const prev = history.current.pop();
+    if (!prev) return;
+    lastPush.current = 0;
+    songRef.current = prev;
+    setSong(prev);
+    setSaveState("dirty");
+    setCanUndo(history.current.length > 0);
   }, []);
 
   const updateSection = (sectionId: string, fn: (s: Section) => Section) =>
@@ -203,6 +231,69 @@ function Editor() {
     song.sections.flatMap((s) => s.slides).find((s) => s.id === selected) ?? song.sections[0]?.slides[0];
   const missingCount = song.sections.flatMap((s) => s.slides).filter((s) => !s[target].trim()).length;
 
+  const titleRow = (
+    <>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              className="input max-w-md text-lg font-semibold"
+              value={song.title}
+              onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
+            />
+            <input
+              className="input w-20 py-1 text-sm"
+              placeholder="Key"
+              title="Musical key"
+              value={song.key ?? ""}
+              onChange={(e) => update((s) => ({ ...s, key: e.target.value }))}
+            />
+            <input
+              className="input w-40 py-1 text-sm"
+              placeholder="Artist"
+              value={song.artist ?? ""}
+              onChange={(e) => update((s) => ({ ...s, artist: e.target.value }))}
+            />
+            <input
+              className="input w-48 py-1 text-sm"
+              placeholder={`${LANG_NAMES[target]} title`}
+              value={song.translatedTitle ?? ""}
+              onChange={(e) => update((s) => ({ ...s, translatedTitle: e.target.value }))}
+            />
+            {view === "slides" && (
+              <label className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" checked={chordMode} onChange={(e) => setChordMode(e.target.checked)} />
+                Show chords
+              </label>
+            )}
+            <div className="inline-flex overflow-hidden rounded-lg border border-border text-xs">
+              {(
+                [
+                  ["full", "Full song"],
+                  ["slides", "Slide by slide"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  className={`px-3 py-1.5 font-medium ${view === v ? "bg-accent text-[var(--accent-fg)]" : "bg-surface"}`}
+                  onClick={() => setView(v)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-primary btn-sm" disabled={busy.size > 0 || missingCount === 0} onClick={translateMissing}>
+              {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
+            </button>
+          </div>
+          {view === "slides" && chordMode && (
+            <p className="text-xs text-muted">
+              Chords go in square brackets before the syllable, e.g. <code>[G]Amazing [D]grace</code>. They are shown to
+              musicians only, never on the audience screen.
+            </p>
+          )}
+          {message && <p className="whitespace-pre-line rounded-lg bg-red-500/10 p-2 text-sm text-red-600">{message}</p>}
+    </>
+  );
+
   return (
     <>
       <Header>
@@ -226,42 +317,31 @@ function Editor() {
           Download .pro
         </button>
       </Header>
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_340px]">
-        <section className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              className="input max-w-md text-lg font-semibold"
-              value={song.title}
-              onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
-            />
-            <input
-              className="input w-20 py-1 text-sm"
-              placeholder="Key"
-              title="Musical key"
-              value={song.key ?? ""}
-              onChange={(e) => update((s) => ({ ...s, key: e.target.value }))}
-            />
-            <input
-              className="input w-40 py-1 text-sm"
-              placeholder="Artist"
-              value={song.artist ?? ""}
-              onChange={(e) => update((s) => ({ ...s, artist: e.target.value }))}
-            />
-            <label className="flex items-center gap-1.5 text-sm">
-              <input type="checkbox" checked={chordMode} onChange={(e) => setChordMode(e.target.checked)} />
-              Show chords
-            </label>
-            <button className="btn btn-primary btn-sm" disabled={busy.size > 0 || missingCount === 0} onClick={translateMissing}>
-              {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
+      {view === "full" ? (
+        <main className="mx-auto max-w-7xl space-y-5 px-4 py-6">
+          {titleRow}
+          <FullSongEditor
+            song={song}
+            onChange={(next) => update(() => next)}
+            onUndo={undo}
+            canUndo={canUndo}
+            selected={selectedSlide?.id ?? null}
+            onSelect={setSelected}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            {selectedSlide && <SlidePreview slide={selectedSlide} style={song.style} />}
+            <StylePanel style={song.style} onChange={(style) => update((s) => ({ ...s, style }))} />
+          </div>
+          <div className="flex justify-end">
+            <button className="btn btn-sm text-red-600" onClick={remove}>
+              Delete song
             </button>
           </div>
-          {chordMode && (
-            <p className="text-xs text-muted">
-              Chords go in square brackets before the syllable, e.g. <code>[G]Amazing [D]grace</code>. They are shown to
-              musicians only, never on the audience screen.
-            </p>
-          )}
-          {message && <p className="whitespace-pre-line rounded-lg bg-red-500/10 p-2 text-sm text-red-600">{message}</p>}
+        </main>
+      ) : (
+      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_340px]">
+        <section className="min-w-0 space-y-4">
+          {titleRow}
 
           <div className="grid grid-cols-2 gap-3 px-1 text-xs font-medium text-muted">
             <div>{LANG_NAMES[song.sourceLang]} (original)</div>
@@ -371,6 +451,7 @@ function Editor() {
           <StylePanel style={song.style} onChange={(style) => update((s) => ({ ...s, style }))} />
         </aside>
       </main>
+      )}
     </>
   );
 }

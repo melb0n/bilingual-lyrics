@@ -3,23 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { chordedText, chordSegments } from "@/lib/chordpro";
+import ChordLine from "@/components/ChordLine";
+import { chordedText } from "@/lib/chordpro";
 import { LANG_NAMES, otherLang, type Lang, type Slide, type Song } from "@/lib/types";
-
-function ChordLine({ line }: { line: string }) {
-  const segs = chordSegments(line);
-  if (!segs.some((s) => s.chord)) return <div>{line || " "}</div>;
-  return (
-    <div className="flex flex-wrap items-end">
-      {segs.map((s, i) => (
-        <span key={i} className="inline-flex flex-col">
-          <span className="h-[1.2em] pr-1 text-[13px] font-bold leading-tight text-blue-700">{s.chord || " "}</span>
-          <span className="whitespace-pre">{s.text || (s.chord ? " " : "")}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function SlideText({ slide, lang, chords }: { slide: Slide; lang: Lang; chords: boolean }) {
   if (!chords) return <div className="whitespace-pre-line">{slide[lang]}</div>;
@@ -73,7 +59,10 @@ export default function PrintSheet() {
           Print / Save as PDF
         </button>
       </div>
-      <h1 className="text-2xl font-bold">{song.title}</h1>
+      <h1 className="text-2xl font-bold">
+        {song.title}
+        {song.translatedTitle && <span className="font-normal text-black/60"> / {song.translatedTitle}</span>}
+      </h1>
       {meta && <p className="text-sm text-black/60">{meta}</p>}
       <div className="mt-6 mb-2 grid grid-cols-2 gap-8 border-b border-black/20 pb-1 text-xs font-semibold uppercase tracking-wide text-black/60">
         <div>{LANG_NAMES[left]}</div>

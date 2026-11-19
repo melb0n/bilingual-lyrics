@@ -108,11 +108,11 @@ export function parseSong(text: string, sourceLang: Lang, linesPerSlide = 2): Pa
       if (name === "title" || name === "t") result.title = arg;
       else if (name === "artist" || name === "subtitle" || name === "st") result.artist ??= arg;
       else if (name === "key") result.key = arg;
-      else if (/^(start_of_chorus|soc)$/.test(name)) startSection(arg ? titleCase(arg) : defaultName("chorus"));
-      else if (/^(start_of_verse|sov)$/.test(name)) startSection(arg ? titleCase(arg) : defaultName("verse"));
-      else if (/^(start_of_bridge|sob)$/.test(name)) startSection(arg ? titleCase(arg) : defaultName("bridge"));
+      else if (/^(start_of_chorus|soc)$/.test(name)) startSection(arg || defaultName("chorus"));
+      else if (/^(start_of_verse|sov)$/.test(name)) startSection(arg || defaultName("verse"));
+      else if (/^(start_of_bridge|sob)$/.test(name)) startSection(arg || defaultName("bridge"));
       else if (/^start_of_/.test(name) && !/^start_of_(tab|grid|abc|ly|svg|textblock)/.test(name))
-        startSection(arg ? titleCase(arg) : titleCase(name.slice(9)));
+        startSection(arg || titleCase(name.slice(9).replace(/_/g, " ")));
       else if (/^(start_of_(tab|grid|abc|ly|svg|textblock)|sot|sog)$/.test(name)) {
         flushStanza();
         skipBlock = true;
@@ -124,8 +124,8 @@ export function parseSong(text: string, sourceLang: Lang, linesPerSlide = 2): Pa
         if (last)
           result.sections.push({ ...last, id: newId(), slides: last.slides.map((s) => ({ ...s, id: newId() })) });
       } else if (/^(comment|c|ci|cb|comment_italic|comment_box|highlight)$/.test(name)) {
-        const sec = sectionName(arg);
-        if (sec) startSection(sec);
+        // A comment starts a section when it names one ("Verse 1", "Coro", "Pre-Chorus").
+        if (sectionName(arg)) startSection(arg.replace(/[\[\]():]/g, "").trim());
       }
       continue;
     }

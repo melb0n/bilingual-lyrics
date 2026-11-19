@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import Header from "@/components/Header";
+import { combine, readDoc, rechunk } from "@/lib/align";
 import { parseSong } from "@/lib/parse";
-import { DEFAULT_STYLE, LANG_NAMES, newId, type Lang, type Song } from "@/lib/types";
+import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
 
 export default function NewSong() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function NewSong() {
   const [sourceLang, setSourceLang] = useState<Lang>("en");
   const [linesPerSlide, setLinesPerSlide] = useState(2);
   const [text, setText] = useState("");
+  const [secondText, setSecondText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,19 +37,25 @@ export default function NewSong() {
   async function create() {
     setBusy(true);
     setError("");
-    await save(
-      {
-        id: newId(),
-        title: title.trim() || parsed.title || "Untitled",
-        sourceLang,
-        sections,
-        key: parsed.key,
-        artist: parsed.artist,
-        style: { ...DEFAULT_STYLE },
-        updatedAt: new Date().toISOString(),
-      },
-      true,
-    );
+    let song: Song = {
+      id: newId(),
+      title: title.trim() || parsed.title || "Untitled",
+      sourceLang,
+      sections,
+      key: parsed.key,
+      artist: parsed.artist,
+      style: { ...DEFAULT_STYLE },
+      updatedAt: new Date().toISOString(),
+    };
+    const hasSecond = secondText.trim().length > 0;
+    if (hasSecond) {
+      // Pair both languages line by line, then split into slides.
+      const second = readDoc(secondText, otherLang(sourceLang));
+      song.sections = combine(readDoc(text, sourceLang), second, sourceLang).sections;
+      song.translatedTitle = second.title;
+      song = rechunk(song, linesPerSlide);
+    }
+    await save(song, !hasSecond);
   }
 
   async function upload(file: File) {
@@ -128,6 +136,17 @@ export default function NewSong() {
               automatically. Chords are kept for musicians but never projected. Blank lines start a new slide.
             </p>
           </div>
+          <div>
+            <label className="label">
+              {LANG_NAMES[otherLang(sourceLang)]} version (optional — leave empty and the AI will translate)
+            </label>
+            <textarea
+              className="input min-h-[200px] font-mono"
+              value={secondText}
+              onChange={(e) => setSecondText(e.target.value)}
+              placeholder={"Paste the whole song in the other language, with the same sections.\nLines are paired up in order."}
+            />
+          </div>
           <label className="block cursor-pointer rounded-lg border border-dashed border-border p-3 text-sm hover:border-accent">
             <span className="font-medium">Or upload a file</span>
             <span className="block text-xs text-muted">
@@ -148,7 +167,7 @@ export default function NewSong() {
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button className="btn btn-primary" disabled={busy || !(title.trim() || parsed.title) || slideCount === 0} onClick={create}>
-            {busy ? "Saving…" : `Create song & translate (${slideCount} slides)`}
+            {busy ? "Saving…" : secondText.trim() ? `Create song (${slideCount} slides)` : `Create song & translate (${slideCount} slides)`}
           </button>
         </section>
 
