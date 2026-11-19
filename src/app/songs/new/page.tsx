@@ -44,6 +44,8 @@ export default function NewSong() {
       sections,
       key: parsed.key,
       artist: parsed.artist,
+      bpm: parsed.bpm,
+      timeSignature: parsed.timeSignature,
       style: { ...DEFAULT_STYLE },
       updatedAt: new Date().toISOString(),
     };

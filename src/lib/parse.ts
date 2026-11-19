@@ -38,6 +38,8 @@ export interface ParsedSong {
   title?: string;
   artist?: string;
   key?: string;
+  bpm?: string;
+  timeSignature?: string;
 }
 
 interface Line {
@@ -108,6 +110,8 @@ export function parseSong(text: string, sourceLang: Lang, linesPerSlide = 2): Pa
       if (name === "title" || name === "t") result.title = arg;
       else if (name === "artist" || name === "subtitle" || name === "st") result.artist ??= arg;
       else if (name === "key") result.key = arg;
+      else if (name === "tempo") result.bpm = arg;
+      else if (name === "time") result.timeSignature = arg;
       else if (/^(start_of_chorus|soc)$/.test(name)) startSection(arg || defaultName("chorus"));
       else if (/^(start_of_verse|sov)$/.test(name)) startSection(arg || defaultName("verse"));
       else if (/^(start_of_bridge|sob)$/.test(name)) startSection(arg || defaultName("bridge"));

@@ -41,6 +41,10 @@ export interface Song {
   /** Key before any transposing, so it can be reset. */
   originalKey?: string;
   artist?: string;
+  /** Tempo in beats per minute. */
+  bpm?: string;
+  /** e.g. "4/4", "6/8". */
+  timeSignature?: string;
   updatedAt: string;
 }
 

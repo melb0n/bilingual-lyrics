@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import FullSongEditor from "@/components/FullSongEditor";
 import Header from "@/components/Header";
 import SlidePreview from "@/components/SlidePreview";
+import SongMetaCard from "@/components/SongMetaCard";
 import StylePanel from "@/components/StylePanel";
 import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
 import { LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song } from "@/lib/types";
@@ -233,31 +234,8 @@ function Editor() {
 
   const titleRow = (
     <>
+          <SongMetaCard song={song} onChange={(patch) => update((s) => ({ ...s, ...patch }))} />
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              className="input max-w-md text-lg font-semibold"
-              value={song.title}
-              onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
-            />
-            <input
-              className="input w-20 py-1 text-sm"
-              placeholder="Key"
-              title="Musical key"
-              value={song.key ?? ""}
-              onChange={(e) => update((s) => ({ ...s, key: e.target.value }))}
-            />
-            <input
-              className="input w-40 py-1 text-sm"
-              placeholder="Artist"
-              value={song.artist ?? ""}
-              onChange={(e) => update((s) => ({ ...s, artist: e.target.value }))}
-            />
-            <input
-              className="input w-48 py-1 text-sm"
-              placeholder={`${LANG_NAMES[target]} title`}
-              value={song.translatedTitle ?? ""}
-              onChange={(e) => update((s) => ({ ...s, translatedTitle: e.target.value }))}
-            />
             {view === "slides" && (
               <label className="flex items-center gap-1.5 text-sm">
                 <input type="checkbox" checked={chordMode} onChange={(e) => setChordMode(e.target.checked)} />

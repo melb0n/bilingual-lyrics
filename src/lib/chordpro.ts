@@ -97,6 +97,8 @@ export function toChordPro(song: Song, mode: ChordProMode): string {
   const out: string[] = [`{title: ${song.title}}`];
   if (song.artist) out.push(`{artist: ${song.artist}}`);
   if (song.key) out.push(`{key: ${song.key}}`);
+  if (song.bpm) out.push(`{tempo: ${song.bpm}}`);
+  if (song.timeSignature) out.push(`{time: ${song.timeSignature}}`);
   if (mode === "both") out.push(`{comment: ${LANG_NAMES[first]} / ${LANG_NAMES[otherLang(first)]}}`);
   for (const section of song.sections) {
     out.push("");

@@ -33,7 +33,14 @@ export default function PrintSheet() {
   if (!song) return <p className="p-6 text-muted">Loading…</p>;
   const left = song.style.topLang;
   const right = otherLang(left);
-  const meta = [song.artist, song.key && `Key: ${song.key}`].filter(Boolean).join(" · ");
+  const meta = [
+    song.artist,
+    song.key && `Key of ${song.key}`,
+    song.bpm && `${song.bpm} BPM`,
+    song.timeSignature,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <main className="mx-auto max-w-4xl bg-white p-8 text-black print:p-0">
