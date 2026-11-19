@@ -5,7 +5,15 @@ export default function SlidePreview({ slide, style }: { slide: Slide; style: So
   const bottom = otherLang(style.topLang);
   // fontSize is in 1080p pixels; the preview is ~1/5.5 scale.
   const size = `calc(${style.fontSize} * 100cqw / 1920)`;
-  const textStyle = { fontFamily: style.font, color: style.color, fontSize: size, lineHeight: 1.2 };
+  const base = {
+    fontFamily: style.font,
+    fontSize: size,
+    lineHeight: 1.2,
+    fontWeight: style.bold ? 700 : 400,
+    textTransform: style.allCaps ? ("uppercase" as const) : undefined,
+  };
+  const topStyle = { ...base, color: style.color };
+  const bottomStyle = { ...base, color: style.bottomColor ?? style.color };
   return (
     <div>
       <div className="label">Slide preview</div>
@@ -14,10 +22,10 @@ export default function SlidePreview({ slide, style }: { slide: Slide; style: So
         style={{ background: style.background, containerType: "inline-size" }}
       >
         <div className="absolute left-[1.4%] right-[1.5%] top-[1.3%] bottom-[52.4%] flex items-center justify-center text-center whitespace-pre-line">
-          <div style={textStyle}>{slide[style.topLang]}</div>
+          <div style={topStyle}>{slide[style.topLang]}</div>
         </div>
         <div className="absolute left-[1.4%] right-[1.5%] top-[51.4%] bottom-[3.5%] flex items-center justify-center text-center whitespace-pre-line">
-          <div style={textStyle}>{slide[bottom]}</div>
+          <div style={bottomStyle}>{slide[bottom]}</div>
         </div>
       </div>
     </div>

@@ -23,7 +23,14 @@ export interface Section {
 export interface SongStyle {
   font: string;
   fontSize: number;
+  /** Text color of the top box. */
   color: string;
+  /** Text color of the bottom box (defaults to `color`). */
+  bottomColor?: string;
+  bold?: boolean;
+  allCaps?: boolean;
+  /** Shrink or grow text to fill its box (ProPresenter "Text up or down"). */
+  scaleToFit?: boolean;
   background: string;
   topLang: Lang;
   /** Which text boxes carry chords in the .pro file (for the stage display). Default "main". */
@@ -60,6 +67,17 @@ export interface SongSummary {
   title: string;
   updatedAt: string;
 }
+
+/** The church's "VB Bilingual Lyrics" ProPresenter theme. */
+export const VB_THEME_STYLE: Partial<SongStyle> = {
+  font: "Arial",
+  fontSize: 100,
+  color: "#ffffff",
+  bottomColor: "#f0e68c",
+  bold: true,
+  allCaps: true,
+  scaleToFit: true,
+};
 
 /** Matches the "Como Dijiste - Bilingual" layout. */
 export const DEFAULT_STYLE: SongStyle = {

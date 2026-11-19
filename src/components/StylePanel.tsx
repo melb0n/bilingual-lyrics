@@ -1,4 +1,4 @@
-import { LANG_NAMES, type Lang, type SongStyle } from "@/lib/types";
+import { LANG_NAMES, VB_THEME_STYLE, type Lang, type SongStyle } from "@/lib/types";
 
 const FONTS = ["Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS", "Georgia", "Times New Roman", "Montserrat", "Open Sans"];
 
@@ -16,7 +16,17 @@ export default function StylePanel({
   const set = <K extends keyof SongStyle>(key: K, value: SongStyle[K]) => onChange({ ...style, [key]: value });
   return (
     <div className="card space-y-3 p-4">
-      <div className="text-sm font-semibold">Style</div>
+      <div className="flex items-center gap-2">
+        <div className="text-sm font-semibold">Style</div>
+        <button
+          type="button"
+          className="btn btn-sm ml-auto"
+          title="Arial Bold 100pt, all caps, white top box, yellow bottom box, text scaled to fit"
+          onClick={() => onChange({ ...style, ...VB_THEME_STYLE })}
+        >
+          Use VB Bilingual Lyrics look
+        </button>
+      </div>
       <div>
         <label className="label">Top language</label>
         <select className="input" value={style.topLang} onChange={(e) => set("topLang", e.target.value as Lang)}>
@@ -47,10 +57,31 @@ export default function StylePanel({
           onChange={(e) => set("fontSize", Number(e.target.value))}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={!!style.bold} onChange={(e) => set("bold", e.target.checked)} /> Bold
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={!!style.allCaps} onChange={(e) => set("allCaps", e.target.checked)} /> All caps
+        </label>
+        <label className="flex items-center gap-1.5" title="ProPresenter scaling: Text up or down">
+          <input type="checkbox" checked={!!style.scaleToFit} onChange={(e) => set("scaleToFit", e.target.checked)} />{" "}
+          Scale text to fit
+        </label>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="label">Text color</label>
+          <label className="label">Top text</label>
           <input type="color" className="h-9 w-full rounded" value={style.color} onChange={(e) => set("color", e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Bottom text</label>
+          <input
+            type="color"
+            className="h-9 w-full rounded"
+            value={style.bottomColor ?? style.color}
+            onChange={(e) => set("bottomColor", e.target.value)}
+          />
         </div>
         <div>
           <label className="label">Background</label>

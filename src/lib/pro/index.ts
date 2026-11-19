@@ -18,6 +18,18 @@ const Presentation = root.lookupType("rv.data.Presentation");
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Obj = Record<string, any>;
 
+const PS_BOLD: Record<string, string> = {
+  Arial: "Arial-BoldMT",
+  Helvetica: "Helvetica-Bold",
+  Verdana: "Verdana-Bold",
+  Tahoma: "Tahoma-Bold",
+  "Trebuchet MS": "TrebuchetMS-Bold",
+  Georgia: "Georgia-Bold",
+  "Times New Roman": "TimesNewRomanPS-BoldMT",
+  Montserrat: "Montserrat-Bold",
+  "Open Sans": "OpenSans-Bold",
+};
+
 const PS_NAMES: Record<string, string> = {
   Arial: "ArialMT",
   Helvetica: "Helvetica",
@@ -219,6 +231,7 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
     }));
 
   const attrs = allSlides.flatMap((b) => b).find((b) => b.attrs)?.attrs;
+  const bottomAttrs = allSlides.find((b) => b.length >= 2)?.[1]?.attrs;
   const family = attrs?.font?.family as string | undefined;
   const style: SongStyle = {
     ...DEFAULT_STYLE,
@@ -226,6 +239,11 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
     font: family && family in PS_NAMES ? family : DEFAULT_STYLE.font,
     fontSize: Math.round(attrs?.font?.size ?? DEFAULT_STYLE.fontSize),
     color: colorToHex(attrs?.text_solid_fill),
+    ...(bottomAttrs && colorToHex(bottomAttrs.text_solid_fill) !== colorToHex(attrs?.text_solid_fill)
+      ? { bottomColor: colorToHex(bottomAttrs.text_solid_fill) }
+      : {}),
+    ...(attrs?.font?.bold || /bold/i.test(attrs?.font?.face ?? "") ? { bold: true } : {}),
+    ...(attrs?.capitalization === "CAPITALIZATION_ALL_CAPS" ? { allCaps: true } : {}),
   };
 
   const filled = (l: Lang) => sections.some((s) => s.slides.some((sl) => sl[l].trim()));
@@ -260,14 +278,30 @@ function hotKeyFor(name: string): string | null {
   return null;
 }
 
-function textElement(name: string, plainText: string, chorded: string | undefined, bounds: Obj, style: SongStyle): Obj {
+function textElement(
+  name: string,
+  plainText: string,
+  chorded: string | undefined,
+  bounds: Obj,
+  style: SongStyle,
+  color: string,
+): Obj {
   const t = clone(template.element) as Obj;
   t.element.name = name; // lets a stage layout show just this box ("Current Slide" → element matching name)
-  const ps = PS_NAMES[style.font] ?? style.font.replace(/\s+/g, "");
-  const [r, g, b] = hexToRgb(style.color);
+  const plainPs = PS_NAMES[style.font] ?? style.font.replace(/\s+/g, "");
+  const ps = style.bold ? (PS_BOLD[style.font] ?? `${plainPs}-Bold`) : plainPs;
+  const [r, g, b] = hexToRgb(color);
   t.element.uuid = uuid();
   t.element.bounds = clone(bounds);
-  t.element.text.attributes.font = { name: ps, size: style.fontSize, family: style.font, face: "Regular" };
+  t.element.text.attributes.font = {
+    name: ps,
+    size: style.fontSize,
+    family: style.font,
+    face: style.bold ? "Bold" : "Regular",
+    ...(style.bold ? { bold: true } : {}),
+  };
+  if (style.allCaps) t.element.text.attributes.capitalization = "CAPITALIZATION_ALL_CAPS";
+  if (style.scaleToFit) t.element.text.scale_behavior = "SCALE_BEHAVIOR_SCALE_FONT_UP_DOWN";
   t.element.text.attributes.text_solid_fill = { red: r / 255, green: g / 255, blue: b / 255, alpha: 1 };
   let text = plainText;
   if (chorded) {
@@ -282,6 +316,7 @@ function textElement(name: string, plainText: string, chorded: string | undefine
       }));
   }
   const rtf = textToRtf(text, {
+    bold: style.bold,
     postScriptName: ps,
     sizePt: style.fontSize,
     rgb: [r, g, b],
@@ -333,8 +368,15 @@ export function exportPro(song: Song): Uint8Array {
                   uuid: uuid(),
                   // Same order as the template file: bottom box first, then top box.
                   elements: [
-                    textElement(boxName(bottom), slide[bottom], chordsFor(slide, bottom), template.bottomBounds, style),
-                    textElement(boxName(top), slide[top], chordsFor(slide, top), template.topBounds, style),
+                    textElement(
+                      boxName(bottom),
+                      slide[bottom],
+                      chordsFor(slide, bottom),
+                      template.bottomBounds,
+                      style,
+                      style.bottomColor ?? style.color,
+                    ),
+                    textElement(boxName(top), slide[top], chordsFor(slide, top), template.topBounds, style, style.color),
                   ],
                 },
                 notes: clone(template.notes),

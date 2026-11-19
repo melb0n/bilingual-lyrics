@@ -117,6 +117,7 @@ function escapeRtf(text: string): string {
 }
 
 export interface RtfStyle {
+  bold?: boolean;
   postScriptName: string;
   sizePt: number;
   rgb: [number, number, number]; // 0-255
@@ -133,7 +134,7 @@ export function textToRtf(text: string, style: RtfStyle): string {
     `{\\*\\expandedcolortbl;\\csgenericrgb\\c${c(r)}\\c${c(g)}\\c${c(b)}\\c100000;\\csgenericrgb\\c100000\\c100000\\c100000\\c0;}` +
     `{\\*\\listtable}{\\*\\listoverridetable}\\uc1\\paperw${style.paperWidthTwips}\\margl0\\margr0\\margt0\\margb0`;
   const para =
-    `\\pard\\li0\\fi0\\ri0\\qc\\sb0\\sa0\\sl240\\slmult1\\slleading0\\f0\\b0\\i0\\ul0\\strike0` +
+    `\\pard\\li0\\fi0\\ri0\\qc\\sb0\\sa0\\sl240\\slmult1\\slleading0\\f0${style.bold ? "\\b" : "\\b0"}\\i0\\ul0\\strike0` +
     `\\fs${Math.round(style.sizePt * 2)}\\expnd0\\expndtw0\\CocoaLigature1\\cf1\\strokewidth0\\strokec1\\nosupersub\\ulc0\\highlight2\\cb2 `;
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   return header + lines.map((l) => para + escapeRtf(l)).join("\\par") + "}";
