@@ -20,7 +20,13 @@ async function netlifyBackend(name: string): Promise<Backend> {
   const { getStore } = await import("@netlify/blobs");
   const store = getStore({ name, consistency: "strong" });
   return {
-    get: (key) => store.get(key, { type: "text" }),
+    // Reading a key that doesn't exist can hang in Netlify's runtime instead of returning null,
+    // so check that it exists (a fast list by exact prefix) before reading it.
+    get: async (key) => {
+      const { blobs } = await store.list({ prefix: key });
+      if (!blobs.some((b) => b.key === key)) return null;
+      return store.get(key, { type: "text" });
+    },
     set: async (key, value) => {
       await store.set(key, value);
     },

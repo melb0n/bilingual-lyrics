@@ -43,12 +43,20 @@ export async function GET() {
       const s = store.value;
       results.push({ ...(await step(`list "${name}" (${consistency})`, 4000, async () => (await s.list()).blobs.length)) });
       if (name === "users") {
-        results.push({ ...(await step(`read "${name}" (${consistency})`, 4000, async () => Boolean(await s.get("team")))) });
+        results.push({
+          ...(await step(`read "${name}" via site storage (${consistency})`, 4000, async () => {
+            const { blobs: found } = await s.list({ prefix: "team" });
+            return found.some((b) => b.key === "team") ? Boolean(await s.get("team")) : "not created yet";
+          })),
+        });
         results.push({
           ...(await step(`write "${name}" (${consistency})`, 4000, async () => {
             await s.set("health-check", new Date().toISOString());
             return true;
           })),
+        });
+        results.push({
+          ...(await step(`read existing item "${name}" (${consistency})`, 4000, async () => Boolean(await s.get("health-check", { type: "text" })))),
         });
       }
     }
