@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import SlidePreview from "@/components/SlidePreview";
 import SongMetaCard from "@/components/SongMetaCard";
 import TranslationSearchPanel from "@/components/TranslationSearchPanel";
+import ChordChartPanel from "@/components/ChordChartPanel";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
 import StylePanel from "@/components/StylePanel";
 import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
@@ -82,6 +83,7 @@ function Editor() {
   const [chordMode, setChordMode] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<TranslationSearchResult | null>(null);
+  const [chordPanel, setChordPanel] = useState(false);
   const autoTranslated = useRef(false);
   const songRef = useRef<Song | null>(null);
   songRef.current = song;
@@ -275,6 +277,8 @@ function Editor() {
     song.sections.flatMap((s) => s.slides).find((s) => s.id === selected) ?? song.sections[0]?.slides[0];
   const missingCount = song.sections.flatMap((s) => s.slides).filter((s) => !s[target].trim()).length;
 
+  const songHasChords = song.sections.some((s) => s.slides.some((sl) => sl.chords && Object.values(sl.chords).some(Boolean)));
+
   const titleRow = (
     <>
           <SongMetaCard song={song} onChange={(patch) => update((s) => ({ ...s, ...patch }))} />
@@ -302,6 +306,13 @@ function Editor() {
               ))}
             </div>
             <button
+              className={`btn btn-sm ${songHasChords ? "" : "border-accent text-accent"}`}
+              title="Add chords from a chord chart"
+              onClick={() => setChordPanel((v) => !v)}
+            >
+              🎸 {songHasChords ? "Add / replace chords" : "Add chords"}
+            </button>
+            <button
               className="btn btn-sm"
               disabled={searching}
               title="Search the web for an official or widely used translation of this song"
@@ -313,6 +324,16 @@ function Editor() {
               {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
             </button>
           </div>
+          {chordPanel && (
+            <ChordChartPanel
+              song={song}
+              onApply={(next) => {
+                update(() => next);
+                setChordMode(true);
+              }}
+              onClose={() => setChordPanel(false)}
+            />
+          )}
           {searchResult && (
             <TranslationSearchPanel
               result={searchResult}

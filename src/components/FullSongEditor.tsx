@@ -58,9 +58,15 @@ export default function FullSongEditor({ song, onChange, onUndo, canUndo, select
   // Changes made elsewhere (AI translation, transpose, undo, title box) rewrite both texts.
   useEffect(() => {
     if (song === fromText.current) return;
+    const before = fromText.current;
     fromText.current = song;
-    setTextA(writeDoc(song, langA, modeA === "chordpro"));
-    setTextB(writeDoc(song, langB, modeB === "chordpro"));
+    // A language that just got chords (e.g. from a chord chart) switches to ChordPro view to show them.
+    const showA = modeA === "chordpro" || (songHasChords(song, langA) && !songHasChords(before, langA));
+    const showB = modeB === "chordpro" || (songHasChords(song, langB) && !songHasChords(before, langB));
+    if (showA !== (modeA === "chordpro")) setModeA("chordpro");
+    if (showB !== (modeB === "chordpro")) setModeB("chordpro");
+    setTextA(writeDoc(song, langA, showA));
+    setTextB(writeDoc(song, langB, showB));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song]);
 
