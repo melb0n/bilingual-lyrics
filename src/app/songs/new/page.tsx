@@ -222,7 +222,7 @@ export default function NewSong() {
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button className="btn btn-primary" disabled={busy || !title || slideCount === 0} onClick={create}>
-            {busy ? "Saving…" : secondText.trim() ? `Create song (${slideCount} slides)` : `Create song & translate (${slideCount} slides)`}
+            {busy ? "Saving…" : secondText.trim() ? `Create song (${slideCount} slides)` : `Create song & find translation (${slideCount} slides)`}
           </button>
         </section>
 

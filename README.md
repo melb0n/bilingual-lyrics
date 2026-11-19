@@ -10,6 +10,10 @@ A private tool for turning worship songs into bilingual ProPresenter slides
 - **Full-song editor** (default): the whole song in each language side by side (ChordPro or plain),
   lined up automatically by section and line, with mismatch warnings, "lock chords" to copy chords
   from one language to the other, slide breaks every N lines, transpose, scroll sync, and undo
+- **Find official translation**: before machine-translating, the AI searches the web for an official or
+  widely sung version in the other language and shows its title, artist and links (it does not copy the
+  lyrics). New songs search first and only machine-translate if nothing is found. Requires web search
+  to be enabled for the Anthropic account.
 - **Paste both languages at once** when creating a song, or let the AI translate the missing one
 - **Slide-by-slide view** with per-slide and per-section re-translate
 - **Slide preview** and **style** settings (font, size, color, which language on top)
