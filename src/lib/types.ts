@@ -28,6 +28,11 @@ export interface SongStyle {
   topLang: Lang;
   /** Which text boxes carry chords in the .pro file (for the stage display). Default "main". */
   stageChords?: "main" | "second" | "both" | "none";
+  /**
+   * How the two text boxes are named in the .pro, so a stage display layout can show just one
+   * ("Current Slide" text, matching element name). Default "role": "Main Language" / "Second Language".
+   */
+  boxNames?: "role" | "language";
 }
 
 export interface Song {

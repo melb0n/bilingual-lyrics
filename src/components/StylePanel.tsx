@@ -73,6 +73,23 @@ export default function StylePanel({
           A language only gets chords if it has them in the editor. Use “Lock chords” to copy them across.
         </p>
       </div>
+      <div>
+        <label className="label">Text box names (for the stage display)</label>
+        <select
+          className="input"
+          value={style.boxNames ?? "role"}
+          onChange={(e) => set("boxNames", e.target.value as SongStyle["boxNames"])}
+        >
+          <option value="role">“Main Language” / “Second Language”</option>
+          <option value="language">
+            “{LANG_NAMES[main]}” / “{LANG_NAMES[second]}”
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          In ProPresenter&apos;s Stage editor, link a text object to Current Slide → Element Matching Name and type one
+          of these names to show only that language.
+        </p>
+      </div>
       <p className="text-xs text-muted">Background is for preview only; ProPresenter uses your theme or media.</p>
     </div>
   );

@@ -6,7 +6,7 @@
 import * as protobuf from "protobufjs/light";
 import { chordSegments } from "../chordpro";
 import { langScore, detectLang } from "../lang";
-import { DEFAULT_STYLE, newId, otherLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
+import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
 import { decodeRtfBytes, rtfToRawText, rtfToText, textToRtf } from "./rtf";
 import { keyToMusic, musicToKey, ranges } from "./chords";
 import schema from "./schema.json";
@@ -49,6 +49,9 @@ function uuid(): { string: string } {
 
 const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
 
+/** Text box names, so a stage layout can show one language ("Current Slide" → element matching name). */
+export const BOX_NAMES = { main: "Main Language", second: "Second Language" } as const;
+
 /* ------------------------------- Import ------------------------------- */
 
 export interface ImportedSong {
@@ -61,6 +64,7 @@ export interface ImportedSong {
 }
 
 interface Box {
+  name?: string;
   y: number;
   text: string;
   /** Same text with inline [chords], when the box has ProPresenter chords. */
@@ -142,7 +146,7 @@ function slideBoxes(cue: Obj | undefined): Box[] {
       const chords = applyChordAttributes(rtfToRawText(rtf), el.text.attributes);
       // With chords, take the words from the chorded text so the two stay line for line.
       const text = chords ? wordsOf(chords) : rtfToText(rtf).replace(PLACEHOLDER, "").trim();
-      return { y: el.bounds?.origin?.y ?? 0, text, chords, attrs: el.text.attributes };
+      return { name: el.name as string | undefined, y: el.bounds?.origin?.y ?? 0, text, chords, attrs: el.text.attributes };
     })
     .sort((a, b) => a.y - b.y);
 }
@@ -179,7 +183,18 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
     const top = allSlides.map((b) => b[0]?.text ?? "").join("\n");
     const bottom = allSlides.map((b) => b[b.length - 1]?.text ?? "").join("\n");
     topLang = langScore(top) > langScore(bottom) ? "es" : "en";
+    // Boxes named by language ("English" / "Español") say it outright.
+    const topName = allSlides.find((b) => b[0]?.name)?.[0]?.name?.trim().toLowerCase();
+    if (topName && /^(english|ingl[eé]s)$/.test(topName)) topLang = "en";
+    if (topName && /^(espa[nñ]ol|spanish)$/.test(topName)) topLang = "es";
   }
+  // Boxes named by role: the "Main Language" box is the song's original language.
+  const firstNamed = allSlides.flatMap((b) => b.map((x, i) => ({ x, i, n: b.length }))).find(({ x }) => x.name === BOX_NAMES.main);
+  const mainFromNames: Lang | undefined = firstNamed
+    ? firstNamed.i === 0
+      ? topLang
+      : otherLang(topLang)
+    : undefined;
   const singleLang: Lang = detectLang(allSlides.map((b) => b.map((x) => x.text).join("\n")).join("\n")) ?? "en";
 
   const sections: Section[] = raw
@@ -214,7 +229,8 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   };
 
   const filled = (l: Lang) => sections.some((s) => s.slides.some((sl) => sl[l].trim()));
-  const sourceLang: Lang = filled("en") ? "en" : filled("es") ? "es" : singleLang;
+  const sourceLang: Lang =
+    mainFromNames && filled(mainFromNames) ? mainFromNames : filled("en") ? "en" : filled("es") ? "es" : singleLang;
 
   const title = fileName.replace(/\.pro$/i, "").replace(/\s*-\s*bilingual$/i, "").trim() || doc.name || "Untitled";
   // Chords in the file are written in the song's original key.
@@ -244,8 +260,9 @@ function hotKeyFor(name: string): string | null {
   return null;
 }
 
-function textElement(plainText: string, chorded: string | undefined, bounds: Obj, style: SongStyle): Obj {
+function textElement(name: string, plainText: string, chorded: string | undefined, bounds: Obj, style: SongStyle): Obj {
   const t = clone(template.element) as Obj;
+  t.element.name = name; // lets a stage layout show just this box ("Current Slide" → element matching name)
   const ps = PS_NAMES[style.font] ?? style.font.replace(/\s+/g, "");
   const [r, g, b] = hexToRgb(style.color);
   t.element.uuid = uuid();
@@ -282,6 +299,12 @@ export function exportPro(song: Song): Uint8Array {
   const cues: Obj[] = [];
   const cueGroups: Obj[] = [];
   const stageChords = style.stageChords ?? "main";
+  const boxName = (lang: Lang) =>
+    style.boxNames === "language"
+      ? LANG_NAMES[lang]
+      : lang === song.sourceLang
+        ? BOX_NAMES.main
+        : BOX_NAMES.second;
   const chordsFor = (slide: Slide, lang: Lang) =>
     stageChords === "both" ||
     (stageChords === "main" && lang === song.sourceLang) ||
@@ -310,8 +333,8 @@ export function exportPro(song: Song): Uint8Array {
                   uuid: uuid(),
                   // Same order as the template file: bottom box first, then top box.
                   elements: [
-                    textElement(slide[bottom], chordsFor(slide, bottom), template.bottomBounds, style),
-                    textElement(slide[top], chordsFor(slide, top), template.topBounds, style),
+                    textElement(boxName(bottom), slide[bottom], chordsFor(slide, bottom), template.bottomBounds, style),
+                    textElement(boxName(top), slide[top], chordsFor(slide, top), template.topBounds, style),
                   ],
                 },
                 notes: clone(template.notes),
