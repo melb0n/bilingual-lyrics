@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE, passwordToken } from "./auth";
 import { pcoLoginEnabled, SESSION_COOKIE, verifySession } from "./session";
-import { atLeast, getUser, saveUser, type Role, type User } from "./users";
+import { atLeast, getUser, touchUser, type Role, type User } from "./users";
 
 /** With only the team password (Planning Center sign-in not set up), everyone signed in is an admin, as before. */
 const TEAM_USER: User = {
@@ -35,7 +35,7 @@ export async function currentUser(req: Request): Promise<User | null> {
   if (!user) return null;
   // Note activity at most every 10 minutes.
   if (Date.now() - Date.parse(user.lastActiveAt || "0") > 10 * 60 * 1000) {
-    await saveUser({ ...user, lastActiveAt: new Date().toISOString() }).catch(() => undefined);
+    await touchUser(user).catch(() => undefined);
   }
   return user;
 }

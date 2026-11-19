@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     step = "saving your account on the site";
     const user = await withTimeout(
       upsertFromSignIn({ id: `pco-${me.personId}`, name: me.name, email: me.email, avatar: me.avatar }),
-      6000,
+      8000,
     );
     step = "starting your session";
     const res = NextResponse.redirect(new URL(saved.next || "/", siteOrigin(req)));
