@@ -7,6 +7,11 @@ export interface Slide {
   /** Multi-line text, one sung line per line. */
   en: string;
   es: string;
+  /**
+   * The same lines with inline ChordPro chords, e.g. "[G]Amazing [D]grace".
+   * Only present when the song has chords for that language.
+   */
+  chords?: Partial<Record<Lang, string>>;
 }
 
 export interface Section {
@@ -29,6 +34,9 @@ export interface Song {
   sourceLang: Lang;
   sections: Section[];
   style: SongStyle;
+  /** Musical key, e.g. "G" or "Bb". */
+  key?: string;
+  artist?: string;
   updatedAt: string;
 }
 

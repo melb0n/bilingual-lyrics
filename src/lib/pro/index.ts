@@ -4,6 +4,7 @@
  * Layout: copied from the church's "Como Dijiste - Bilingual.pro" (see template.json).
  */
 import * as protobuf from "protobufjs/light";
+import { chordSegments } from "../chordpro";
 import { langScore, detectLang } from "../lang";
 import { DEFAULT_STYLE, newId, otherLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
 import { rtfToText, textToRtf } from "./rtf";
@@ -60,7 +61,38 @@ export interface ImportedSong {
 interface Box {
   y: number;
   text: string;
+  /** Same text with inline [chords], when the box has ProPresenter chords. */
+  chords?: string;
   attrs?: Obj;
+}
+
+/** Insert ProPresenter chord attributes (character ranges) into the text as inline [chords]. */
+function applyChordAttributes(text: string, attrs: Obj | undefined): string | undefined {
+  const marks = ((attrs?.custom_attributes ?? []) as Obj[])
+    .filter((a) => typeof a.chord === "string" && a.chord)
+    .map((a) => ({ pos: Math.min(Math.max(0, a.range?.start ?? 0), text.length), chord: a.chord as string }))
+    .sort((a, b) => b.pos - a.pos);
+  if (!marks.length) return undefined;
+  let out = text;
+  for (const { pos, chord } of marks) out = out.slice(0, pos) + `[${chord}]` + out.slice(pos);
+  return out;
+}
+
+/** Plain text plus chord positions (UTF-16 offsets, lines joined with \n) from inline ChordPro text. */
+function chordMarks(chorded: string): { text: string; marks: { pos: number; chord: string }[] } {
+  const marks: { pos: number; chord: string }[] = [];
+  const lines: string[] = [];
+  let offset = 0;
+  for (const line of chorded.split("\n")) {
+    let plain = "";
+    for (const seg of chordSegments(line)) {
+      if (seg.chord) marks.push({ pos: offset + plain.length, chord: seg.chord });
+      plain += seg.text;
+    }
+    lines.push(plain);
+    offset += plain.length + 1;
+  }
+  return { text: lines.join("\n"), marks };
 }
 
 function slideBoxes(cue: Obj | undefined): Box[] {
@@ -69,11 +101,10 @@ function slideBoxes(cue: Obj | undefined): Box[] {
   return elements
     .map((e) => e.element)
     .filter((el) => el?.text?.rtf_data)
-    .map((el) => ({
-      y: el.bounds?.origin?.y ?? 0,
-      text: rtfToText(atob(el.text.rtf_data)),
-      attrs: el.text.attributes,
-    }))
+    .map((el) => {
+      const text = rtfToText(atob(el.text.rtf_data));
+      return { y: el.bounds?.origin?.y ?? 0, text, chords: applyChordAttributes(text, el.text.attributes), attrs: el.text.attributes };
+    })
     .sort((a, b) => a.y - b.y);
 }
 
@@ -118,11 +149,15 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
       name: g.name,
       slides: g.slides.map((boxes): Slide => {
         const slide: Slide = { id: newId(), en: "", es: "" };
+        const assign = (lang: Lang, bs: Box[]) => {
+          slide[lang] = bs.map((b) => b.text).join("\n");
+          if (bs.some((b) => b.chords)) slide.chords = { ...slide.chords, [lang]: bs.map((b) => b.chords ?? b.text).join("\n") };
+        };
         if (bilingual && boxes.length >= 2) {
-          slide[topLang] = boxes[0].text;
-          slide[otherLang(topLang)] = boxes.slice(1).map((b) => b.text).join("\n");
+          assign(topLang, [boxes[0]]);
+          assign(otherLang(topLang), boxes.slice(1));
         } else {
-          slide[bilingual ? topLang : singleLang] = boxes.map((b) => b.text).join("\n");
+          assign(bilingual ? topLang : singleLang, boxes);
         }
         return slide;
       }),
@@ -167,7 +202,7 @@ function hotKeyFor(name: string): string | null {
   return null;
 }
 
-function textElement(text: string, bounds: Obj, style: SongStyle): Obj {
+function textElement(plainText: string, chorded: string | undefined, bounds: Obj, style: SongStyle): Obj {
   const t = clone(template.element) as Obj;
   const ps = PS_NAMES[style.font] ?? style.font.replace(/\s+/g, "");
   const [r, g, b] = hexToRgb(style.color);
@@ -175,6 +210,16 @@ function textElement(text: string, bounds: Obj, style: SongStyle): Obj {
   t.element.bounds = clone(bounds);
   t.element.text.attributes.font = { name: ps, size: style.fontSize, family: style.font, face: "Regular" };
   t.element.text.attributes.text_solid_fill = { red: r / 255, green: g / 255, blue: b / 255, alpha: 1 };
+  let text = plainText;
+  if (chorded) {
+    // Chords for the stage display (experimental: positions follow ProPresenter's character ranges).
+    const parsed = chordMarks(chorded);
+    text = parsed.text;
+    t.element.text.attributes.custom_attributes = parsed.marks.map(({ pos, chord }) => ({
+      range: { start: pos, end: Math.min(pos + 1, Math.max(text.length, pos)) },
+      chord,
+    }));
+  }
   const rtf = textToRtf(text, {
     postScriptName: ps,
     sizePt: style.fontSize,
@@ -214,8 +259,8 @@ export function exportPro(song: Song): Uint8Array {
                   uuid: uuid(),
                   // Same order as the template file: bottom box first, then top box.
                   elements: [
-                    textElement(slide[bottom], template.bottomBounds, style),
-                    textElement(slide[top], template.topBounds, style),
+                    textElement(slide[bottom], slide.chords?.[bottom], template.bottomBounds, style),
+                    textElement(slide[top], slide.chords?.[top], template.topBounds, style),
                   ],
                 },
                 notes: clone(template.notes),
@@ -249,7 +294,8 @@ export function exportPro(song: Song): Uint8Array {
     background: clone(template.background),
     cue_groups: cueGroups,
     cues,
-    ccli: { song_title: song.title },
+    ccli: { song_title: song.title, ...(song.artist ? { author: song.artist } : {}) },
+    ...(song.key ? { music_key: song.key } : {}),
     timeline: clone(template.timeline),
   };
   const err = Presentation.verify(Presentation.fromObject(obj));

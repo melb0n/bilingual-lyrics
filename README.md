@@ -13,8 +13,13 @@ A private tool for turning worship songs into bilingual ProPresenter slides
 - **Printable bilingual lyric sheet** (Print / Save as PDF)
 - **Song library** with search, stored in Netlify Blobs
 - **Upload a `.pro` file** (English-only, Spanish-only, or bilingual; the site works out which box is which language)
+- **ChordPro**: paste or upload `.cho`/`.chordpro`/`.txt` charts (ChordPro tags, inline `[G]` chords,
+  or chords written above the lyrics). Chords are kept for musicians, never projected. The AI places
+  chords on translated lines too. Edit chords with "Show chords" in the editor.
+- **Chord sheet** printout (chords above English and Spanish) and **ChordPro export** (English, Spanish, or both)
 - **Download as ProPresenter 7 `.pro`** in the "Como Dijiste - Bilingual" layout: two text boxes,
-  section groups with colors and hot keys
+  section groups with colors and hot keys. Chords are written as ProPresenter chord attributes for the stage
+  display (experimental: not yet verified against a ProPresenter file that has chords)
 
 ## About the .pro format
 ProPresenter 7 files are Google Protocol Buffers. The schema in `src/lib/pro/schema.json` is generated from the

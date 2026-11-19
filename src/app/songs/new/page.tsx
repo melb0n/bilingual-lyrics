@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import Header from "@/components/Header";
-import { parseLyrics } from "@/lib/parse";
+import { parseSong } from "@/lib/parse";
 import { DEFAULT_STYLE, LANG_NAMES, newId, type Lang, type Song } from "@/lib/types";
 
 export default function NewSong() {
@@ -15,7 +15,8 @@ export default function NewSong() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const sections = useMemo(() => parseLyrics(text, sourceLang, linesPerSlide), [text, sourceLang, linesPerSlide]);
+  const parsed = useMemo(() => parseSong(text, sourceLang, linesPerSlide), [text, sourceLang, linesPerSlide]);
+  const sections = parsed.sections;
   const slideCount = sections.reduce((n, s) => n + s.slides.length, 0);
 
   async function save(song: Song, translate: boolean) {
@@ -37,9 +38,11 @@ export default function NewSong() {
     await save(
       {
         id: newId(),
-        title: title.trim(),
+        title: title.trim() || parsed.title || "Untitled",
         sourceLang,
         sections,
+        key: parsed.key,
+        artist: parsed.artist,
         style: { ...DEFAULT_STYLE },
         updatedAt: new Date().toISOString(),
       },
@@ -48,11 +51,22 @@ export default function NewSong() {
   }
 
   async function upload(file: File) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    // ChordPro files sometimes use .pro too; ProPresenter files are binary (contain NUL bytes).
+    const isText = !bytes.slice(0, 4096).includes(0);
+    if (!/\.pro$/i.test(file.name) || isText) {
+      // ChordPro or plain-text chart: load it into the text box for review.
+      const content = new TextDecoder().decode(bytes);
+      setText(content);
+      const meta = parseSong(content, sourceLang, linesPerSlide);
+      if (!title.trim()) setTitle(meta.title || file.name.replace(/\.[^.]+$/, ""));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const { importPro } = await import("@/lib/pro");
-      const imported = importPro(new Uint8Array(await file.arrayBuffer()), file.name);
+      const imported = importPro(bytes, file.name);
       const slides = imported.sections.flatMap((s) => s.slides);
       if (slides.length === 0) throw new Error("No lyrics found in that file.");
       const missing = slides.some((s) => !s.en.trim() || !s.es.trim());
@@ -102,7 +116,7 @@ export default function NewSong() {
             </div>
           </div>
           <div>
-            <label className="label">Paste lyrics or a chord chart</label>
+            <label className="label">Paste lyrics, a chord chart, or ChordPro</label>
             <textarea
               className="input min-h-[360px] font-mono"
               value={text}
@@ -110,17 +124,19 @@ export default function NewSong() {
               placeholder={"Verse 1\nG          D\nAmazing grace how sweet the sound\n...\n\nChorus\n..."}
             />
             <p className="mt-1 text-xs text-muted">
-              Chords and section labels (Verse, Chorus, Coro, Puente…) are detected automatically. Blank lines start a new slide.
+              Section labels (Verse, Chorus, Coro, Puente…) and ChordPro tags like {"{start_of_chorus}"} are detected
+              automatically. Chords are kept for musicians but never projected. Blank lines start a new slide.
             </p>
           </div>
           <label className="block cursor-pointer rounded-lg border border-dashed border-border p-3 text-sm hover:border-accent">
-            <span className="font-medium">Or upload a ProPresenter 7 .pro file</span>
+            <span className="font-medium">Or upload a file</span>
             <span className="block text-xs text-muted">
-              English-only, Spanish-only, or already bilingual. Missing lines are translated automatically.
+              ProPresenter 7 <code>.pro</code> (English, Spanish, or bilingual) or a ChordPro / text chart (
+              <code>.cho</code>, <code>.chordpro</code>, <code>.txt</code>).
             </span>
             <input
               type="file"
-              accept=".pro"
+              accept=".pro,.cho,.chopro,.chordpro,.crd,.txt"
               className="sr-only"
               disabled={busy}
               onChange={(e) => {
@@ -131,7 +147,7 @@ export default function NewSong() {
             />
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button className="btn btn-primary" disabled={busy || !title.trim() || slideCount === 0} onClick={create}>
+          <button className="btn btn-primary" disabled={busy || !(title.trim() || parsed.title) || slideCount === 0} onClick={create}>
             {busy ? "Saving…" : `Create song & translate (${slideCount} slides)`}
           </button>
         </section>
@@ -139,12 +155,22 @@ export default function NewSong() {
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-muted">Preview</h2>
           {sections.length === 0 && <p className="text-sm text-muted">Slides will appear here as you paste.</p>}
+          {(parsed.title || parsed.key || parsed.artist) && (
+            <p className="text-xs text-muted">
+              {[parsed.title && `Title: ${parsed.title}`, parsed.artist && `Artist: ${parsed.artist}`, parsed.key && `Key: ${parsed.key}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
           {sections.map((s) => (
             <div key={s.id} className="card space-y-2 p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted">{s.name}</div>
               {s.slides.map((sl) => (
                 <pre key={sl.id} className="whitespace-pre-wrap rounded-md bg-background p-2 font-sans text-sm">
                   {sl[sourceLang]}
+                  {sl.chords?.[sourceLang] && (
+                    <span className="mt-1 block font-mono text-xs text-muted">{sl.chords[sourceLang]}</span>
+                  )}
                 </pre>
               ))}
             </div>

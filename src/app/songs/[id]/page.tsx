@@ -6,7 +6,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import SlidePreview from "@/components/SlidePreview";
 import StylePanel from "@/components/StylePanel";
-import { LANG_NAMES, newId, otherLang, type Section, type Slide, type Song } from "@/lib/types";
+import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
+import { LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song } from "@/lib/types";
 
 type SaveState = "saved" | "dirty" | "saving" | "error";
 
@@ -16,7 +17,11 @@ function sourceText(song: Song): string {
     .join("\n\n");
 }
 
-async function requestTranslation(song: Song, section: Section, slides: Slide[]): Promise<string[]> {
+async function requestTranslation(
+  song: Song,
+  section: Section,
+  slides: Slide[],
+): Promise<{ translations: string[]; chords: string[] }> {
   const res = await fetch("/api/translate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -26,12 +31,38 @@ async function requestTranslation(song: Song, section: Section, slides: Slide[])
       title: song.title,
       sectionName: section.name,
       slides: slides.map((s) => s[song.sourceLang]),
+      chordSlides: slides.map((s) => s.chords?.[song.sourceLang] ?? ""),
       context: sourceText(song),
     }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Translation failed (${res.status})`);
-  return data.translations as string[];
+  return { translations: data.translations as string[], chords: (data.chords as string[]) ?? [] };
+}
+
+function download(name: string, data: BlobPart, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const safeName = (title: string) => title.replace(/[\\/:*?"<>|]/g, "").trim() || "Song";
+
+/** Update one language of a slide, keeping its chords in sync. */
+function setSlideText(slide: Slide, lang: Lang, value: string, chordMode: boolean): Slide {
+  const chords = { ...slide.chords };
+  if (chordMode) {
+    if (hasChords(value)) chords[lang] = value;
+    else delete chords[lang];
+    return { ...slide, [lang]: stripChords(value), chords };
+  }
+  const kept = reconcileChords(chords[lang], value);
+  if (kept) chords[lang] = kept;
+  else delete chords[lang];
+  return { ...slide, [lang]: value, chords };
 }
 
 function Editor() {
@@ -44,6 +75,7 @@ function Editor() {
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [chordMode, setChordMode] = useState(false);
   const autoTranslated = useRef(false);
   const songRef = useRef<Song | null>(null);
   songRef.current = song;
@@ -53,6 +85,7 @@ function Editor() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((s: Song) => {
         setSong(s);
+        setChordMode(s.sections.some((sec) => sec.slides.some((sl) => sl.chords && Object.keys(sl.chords).length)));
         setSelected(s.sections[0]?.slides[0]?.id ?? null);
       })
       .catch(() => setLoadError("Song not found."));
@@ -83,10 +116,10 @@ function Editor() {
   const updateSection = (sectionId: string, fn: (s: Section) => Section) =>
     update((song) => ({ ...song, sections: song.sections.map((s) => (s.id === sectionId ? fn(s) : s)) }));
 
-  const updateSlide = (sectionId: string, slideId: string, patch: Partial<Slide>) =>
+  const editSlide = (sectionId: string, slideId: string, lang: Lang, value: string) =>
     updateSection(sectionId, (s) => ({
       ...s,
-      slides: s.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
+      slides: s.slides.map((sl) => (sl.id === slideId ? setSlideText(sl, lang, value, chordMode) : sl)),
     }));
 
   const target = song ? otherLang(song.sourceLang) : "es";
@@ -97,10 +130,17 @@ function Editor() {
     setBusy((b) => new Set([...b, ...keys]));
     try {
       const out = await requestTranslation(song, section, slides);
-      const byId = new Map(slides.map((s, i) => [s.id, out[i]]));
+      const byId = new Map(slides.map((s, i) => [s.id, i]));
       updateSection(section.id, (s) => ({
         ...s,
-        slides: s.slides.map((sl) => (byId.has(sl.id) ? { ...sl, [target]: byId.get(sl.id)! } : sl)),
+        slides: s.slides.map((sl) => {
+          const i = byId.get(sl.id);
+          if (i === undefined) return sl;
+          const chords = { ...sl.chords };
+          if (out.chords[i]) chords[target] = out.chords[i];
+          else delete chords[target];
+          return { ...sl, [target]: out.translations[i], chords };
+        }),
       }));
     } catch (e) {
       setMessage((m) => (m ? m + "\n" : "") + `${section.name}: ${(e as Error).message}`);
@@ -138,16 +178,16 @@ function Editor() {
     if (!song) return;
     try {
       const { exportPro } = await import("@/lib/pro");
-      const bytes = exportPro(song);
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/octet-stream" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${song.title.replace(/[\\/:*?"<>|]/g, "").trim() || "Song"} - Bilingual.pro`;
-      a.click();
-      URL.revokeObjectURL(url);
+      download(`${safeName(song.title)} - Bilingual.pro`, exportPro(song) as BlobPart, "application/octet-stream");
     } catch (e) {
       setMessage((e as Error).message);
     }
+  }
+
+  function downloadChordPro(mode: ChordProMode) {
+    if (!song) return;
+    const suffix = mode === "both" ? "Bilingual" : LANG_NAMES[mode];
+    download(`${safeName(song.title)} - ${suffix}.cho`, toChordPro(song, mode), "text/plain;charset=utf-8");
   }
 
   async function remove() {
@@ -170,8 +210,18 @@ function Editor() {
           {{ saved: "All changes saved", dirty: "Unsaved…", saving: "Saving…", error: "Save failed" }[saveState]}
         </span>
         <Link href={`/songs/${song.id}/print`} className="btn btn-sm">
-          Print sheet
+          Print
         </Link>
+        <details className="relative">
+          <summary className="btn btn-sm list-none">ChordPro ▾</summary>
+          <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            {(["en", "es", "both"] as ChordProMode[]).map((m) => (
+              <button key={m} className="btn btn-sm w-full justify-start border-0" onClick={() => downloadChordPro(m)}>
+                {m === "both" ? "Both languages" : LANG_NAMES[m]} (.cho)
+              </button>
+            ))}
+          </div>
+        </details>
         <button className="btn btn-sm" onClick={downloadPro}>
           Download .pro
         </button>
@@ -184,10 +234,33 @@ function Editor() {
               value={song.title}
               onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
             />
+            <input
+              className="input w-20 py-1 text-sm"
+              placeholder="Key"
+              title="Musical key"
+              value={song.key ?? ""}
+              onChange={(e) => update((s) => ({ ...s, key: e.target.value }))}
+            />
+            <input
+              className="input w-40 py-1 text-sm"
+              placeholder="Artist"
+              value={song.artist ?? ""}
+              onChange={(e) => update((s) => ({ ...s, artist: e.target.value }))}
+            />
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" checked={chordMode} onChange={(e) => setChordMode(e.target.checked)} />
+              Show chords
+            </label>
             <button className="btn btn-primary btn-sm" disabled={busy.size > 0 || missingCount === 0} onClick={translateMissing}>
               {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
             </button>
           </div>
+          {chordMode && (
+            <p className="text-xs text-muted">
+              Chords go in square brackets before the syllable, e.g. <code>[G]Amazing [D]grace</code>. They are shown to
+              musicians only, never on the audience screen.
+            </p>
+          )}
           {message && <p className="whitespace-pre-line rounded-lg bg-red-500/10 p-2 text-sm text-red-600">{message}</p>}
 
           <div className="grid grid-cols-2 gap-3 px-1 text-xs font-medium text-muted">
@@ -228,18 +301,18 @@ function Editor() {
                   onClick={() => setSelected(slide.id)}
                 >
                   <textarea
-                    className="input min-h-[64px] resize-y"
+                    className={`input min-h-[64px] resize-y ${chordMode ? "font-mono text-[13px]" : ""}`}
                     rows={Math.max(2, slide[song.sourceLang].split("\n").length)}
-                    value={slide[song.sourceLang]}
-                    onChange={(e) => updateSlide(section.id, slide.id, { [song.sourceLang]: e.target.value })}
+                    value={chordMode ? chordedText(slide, song.sourceLang) : slide[song.sourceLang]}
+                    onChange={(e) => editSlide(section.id, slide.id, song.sourceLang, e.target.value)}
                   />
                   <div className="space-y-1">
                     <textarea
-                      className="input min-h-[64px] resize-y"
+                      className={`input min-h-[64px] resize-y ${chordMode ? "font-mono text-[13px]" : ""}`}
                       rows={Math.max(2, slide[target].split("\n").length)}
-                      value={busy.has(slide.id) ? "Translating…" : slide[target]}
+                      value={busy.has(slide.id) ? "Translating…" : chordMode ? chordedText(slide, target) : slide[target]}
                       disabled={busy.has(slide.id)}
-                      onChange={(e) => updateSlide(section.id, slide.id, { [target]: e.target.value })}
+                      onChange={(e) => editSlide(section.id, slide.id, target, e.target.value)}
                     />
                     <div className="flex gap-1">
                       <button

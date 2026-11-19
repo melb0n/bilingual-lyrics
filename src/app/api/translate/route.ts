@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { stripChords } from "@/lib/chordpro";
 import { LANG_NAMES, type Lang } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -10,7 +11,7 @@ export const maxDuration = 26;
 const client = new Anthropic();
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
-const Output = z.object({ translations: z.array(z.string()) });
+const Output = z.object({ translations: z.array(z.string()), chords: z.array(z.string()) });
 
 const SYSTEM = `You translate Christian worship song lyrics for bilingual projection slides used during live congregational singing.
 
@@ -20,7 +21,8 @@ Rules:
 - Keep the theological meaning faithful. Use language natural to Spanish- or English-speaking evangelical congregations (e.g. "Señor", "gracia", "alabanza"; "Lord", "grace", "praise").
 - Aim for singable lines: similar syllable count and natural stress to the original, so the translation can be sung to the same melody where possible. Prefer clarity over rhyme.
 - Keep repeated lines translated consistently across the song.
-- Do not add notes, chord symbols, section labels, or quotation marks.`;
+- Do not add notes, section labels, or quotation marks. "translations" never contains chord symbols.
+- "chords" has one entry per slide. When a slide is also given with ChordPro chords (like "[G]Amazing [D]grace"), return your translation with the same chords, in the same order, each placed in square brackets right before the syllable sung on that chord. Removing the bracketed chords must give exactly the matching "translations" entry. For slides given without chords, return "".`;
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
@@ -29,6 +31,7 @@ export async function POST(req: Request) {
     title?: string;
     sectionName?: string;
     slides?: string[];
+    chordSlides?: string[];
     context?: string;
   } | null;
 
@@ -40,12 +43,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Send 1–40 slides" }, { status: 400 });
   }
 
+  const chordSlides = Array.isArray(body?.chordSlides) && body.chordSlides.length === slides.length ? body.chordSlides : null;
+  const withChords = chordSlides?.some((c) => typeof c === "string" && c.includes("["));
+
   const prompt = [
     `Song: ${body?.title || "(untitled)"}`,
     body?.sectionName ? `Section: ${body.sectionName}` : "",
     body?.context ? `Full song for context (do not translate this part):\n${body.context.slice(0, 8000)}` : "",
     `Translate these ${slides.length} slides from ${LANG_NAMES[from]} to ${LANG_NAMES[to]}:`,
     JSON.stringify(slides),
+    withChords ? `The same slides with chords ("" = no chords):\n${JSON.stringify(chordSlides)}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -76,7 +83,13 @@ export async function POST(req: Request) {
     if (!out || out.translations.length !== slides.length) {
       return NextResponse.json({ error: "Translation came back incomplete. Try again." }, { status: 502 });
     }
-    return NextResponse.json({ translations: out.translations });
+    const norm = (t: string) => t.replace(/\s+/g, " ").trim();
+    // Keep AI-placed chords only when they match the translation word for word.
+    const chords = out.translations.map((t, i) => {
+      const c = out.chords[i] ?? "";
+      return withChords && c.includes("[") && norm(stripChords(c)) === norm(t) ? c : "";
+    });
+    return NextResponse.json({ translations: out.translations, chords });
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {
       return NextResponse.json({ error: "ANTHROPIC_API_KEY is missing or invalid." }, { status: 500 });
