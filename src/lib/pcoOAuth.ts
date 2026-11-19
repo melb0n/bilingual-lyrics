@@ -7,8 +7,23 @@ const API = "https://api.planningcenteronline.com";
 
 export const STATE_COOKIE = "oauth_state";
 
+/**
+ * The public address of the site, as visitors see it. On Netlify the request URL a function sees can be an
+ * internal or deploy-specific host, so prefer SITE_URL, then the forwarded host, then Netlify's URL.
+ */
+export function siteOrigin(req: Request): string {
+  const configured = process.env.SITE_URL?.trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  const host = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || req.headers.get("host")?.trim();
+  if (host) {
+    const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || (host.startsWith("localhost") ? "http" : "https");
+    return `${proto}://${host}`;
+  }
+  return (process.env.URL || new URL(req.url).origin).replace(/\/+$/, "");
+}
+
 export function redirectUri(req: Request): string {
-  return `${new URL(req.url).origin}/api/auth/callback`;
+  return `${siteOrigin(req)}/api/auth/callback`;
 }
 
 export function authorizeUrl(req: Request, state: string): string {

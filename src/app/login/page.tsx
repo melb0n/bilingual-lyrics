@@ -48,6 +48,15 @@ export default function LoginPage() {
             <p className="text-xs text-muted">
               First time? You&apos;ll start as a Viewer until a team admin gives you more access.
             </p>
+            {me.callbackUrl && (
+              <details className="text-xs text-muted">
+                <summary className="cursor-pointer">Setting this up?</summary>
+                <p className="mt-1">
+                  In Planning Center&apos;s app settings, &ldquo;Authorization callback URLs&rdquo; must contain exactly:
+                </p>
+                <code className="mt-1 block break-all rounded bg-background p-2 text-foreground">{me.callbackUrl}</code>
+              </details>
+            )}
           </>
         )}
         {me?.mode === "password" && (

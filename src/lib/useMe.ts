@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export type Role = "admin" | "editor" | "viewer";
 export interface Me {
   mode: "pco" | "password";
+  callbackUrl?: string;
   user: { id: string; name: string; email?: string; avatar?: string; role: Role } | null;
 }
 
