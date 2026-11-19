@@ -215,3 +215,14 @@ TEAM_PASSWORD=dev ANTHROPIC_API_KEY=sk-ant-... npm run dev
 ```
 Without `PCO_OAUTH_*` variables the app uses the team password. Locally, data is saved in `.data/`
 instead of Netlify Blobs.
+
+---
+
+## License
+MIT License, © 2026 Iglesia Manantial De Vida. See [`LICENSE`](LICENSE). You may use, change and share
+this software, including for other churches, as long as the copyright notice and license text stay
+with it. It comes with no warranty.
+
+The ProPresenter file-format definitions in `src/lib/pro/schema.json` come from
+github.com/greyshirtguy/ProPresenter7-Proto and keep their own MIT license
+(`src/lib/pro/PROTO_LICENSE`).
