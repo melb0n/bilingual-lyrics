@@ -18,17 +18,19 @@ export async function searchAndReport<T extends { sources?: Source[] }>(
   system: string,
   prompt: string,
   reportTool: Anthropic.Tool,
+  serverTools: Anthropic.ToolUnion[] = [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
+  maxTokens = 4000,
 ): Promise<T | NextResponse> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY isn't set. Add it in Netlify's environment variables." }, { status: 500 });
   }
-  const tools: Anthropic.ToolUnion[] = [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }, reportTool];
+  const tools: Anthropic.ToolUnion[] = [...serverTools, reportTool];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
   try {
     for (let turn = 0; turn < 4; turn++) {
       const response = await client.messages.create({
         model: MODEL,
-        max_tokens: 4000,
+        max_tokens: maxTokens,
         system,
         output_config: { effort: "low" },
         tools,
@@ -43,7 +45,7 @@ export async function searchAndReport<T extends { sources?: Source[] }>(
           .filter((s) => /^https?:\/\//i.test(s.url))
           .slice(0, 6)
           .map((s) => ({ title: String(s.title).slice(0, 200), url: String(s.url).slice(0, 500) }));
-        return { ...r, sources };
+        return r.sources ? { ...r, sources } : r;
       }
       if (response.stop_reason === "refusal") break;
       messages.push({ role: "assistant", content: response.content });
@@ -52,9 +54,9 @@ export async function searchAndReport<T extends { sources?: Source[] }>(
     }
     return NextResponse.json({ error: "The search didn't return a result. Try again." }, { status: 502 });
   } catch (error) {
-    if (error instanceof Anthropic.BadRequestError && /web.?search/i.test(error.message)) {
+    if (error instanceof Anthropic.BadRequestError && /web.?(search|fetch)/i.test(error.message)) {
       return NextResponse.json(
-        { error: "Web search isn't enabled for this Anthropic account. Turn it on in the Anthropic Console settings." },
+        { error: "Web search/fetch isn't enabled for this Anthropic account. Turn it on in the Anthropic Console settings." },
         { status: 400 },
       );
     }

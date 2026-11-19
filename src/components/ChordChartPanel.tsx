@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { ChordSearchResult } from "@/app/api/find-chords/route";
-import { applyChordChart, type ChartMergeResult } from "@/lib/chordmerge";
+import type { ChordsFromUrlResult } from "@/app/api/chords-from-url/route";
+import { applyChordChart, applyLineChords, sectionLines, type ChartMergeResult } from "@/lib/chordmerge";
 import { detectLang } from "@/lib/lang";
 import { stripChords } from "@/lib/chordpro";
 import { LANG_NAMES, otherLang, type Lang, type Song } from "@/lib/types";
@@ -21,10 +22,13 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
   const [lang, setLang] = useState<Lang | null>(null); // null = detect from the chart
   const [alsoOther, setAlsoOther] = useState(true);
   const [result, setResult] = useState<Omit<ChartMergeResult, "song"> | null>(null);
+  const [progress, setProgress] = useState("");
+  const [auto, setAuto] = useState<{ matched: number; total: number; url: string; key?: string } | null>(null);
+  const busy = searching || Boolean(progress);
 
   const chartLang: Lang = lang ?? detectLang(stripChords(chart)) ?? song.sourceLang;
 
-  async function findCharts() {
+  async function findCharts(): Promise<ChordSearchResult | null> {
     setSearching(true);
     setError("");
     try {
@@ -46,10 +50,68 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Search failed (${res.status})`);
       setSearch(data as ChordSearchResult);
+      return data as ChordSearchResult;
+    } catch (e) {
+      setError((e as Error).message);
+      return null;
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  /** Have the AI read one chart page and place its chords on every section's lines. */
+  async function readChart(url: string): Promise<{ matched: number; total: number } | null> {
+    const lang = song.sourceLang;
+    const other = otherLang(lang);
+    const bySection = new Map<string, string[]>();
+    const cache = new Map<string, ChordsFromUrlResult>(); // repeated sections are read once
+    let key = "";
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    for (let i = 0; i < song.sections.length; i++) {
+      const sec = song.sections[i];
+      const lines = sectionLines(sec, lang);
+      if (!lines.length) continue;
+      const cacheKey = lines.join("\n");
+      let r = cache.get(cacheKey);
+      if (!r) {
+        setProgress(`Reading the chart on ${host}: ${sec.name} (${i + 1} of ${song.sections.length})…`);
+        const res = await fetch("/api/chords-from-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, title: song.title, sectionName: sec.name, lang, lines, otherLines: sectionLines(sec, other) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Couldn't read the chart (${res.status})`);
+        r = data as ChordsFromUrlResult;
+        cache.set(cacheKey, r);
+        // A page that can't be read gives up on the first section rather than trying every one.
+        if (i === 0 && !r.found) return null;
+      }
+      key ||= r.key;
+      bySection.set(sec.id, r.chorded);
+    }
+    const merged = applyLineChords(song, lang, bySection, alsoOther);
+    if (!merged.matched) return null;
+    onApply({ ...merged.song, key: song.key || key || undefined });
+    setAuto({ matched: merged.matched, total: merged.total, url, key: key || undefined });
+    return merged;
+  }
+
+  async function autoAdd(sources?: ChordSearchResult["sources"]) {
+    setError("");
+    setAuto(null);
+    try {
+      const list = sources ?? (await findCharts())?.sources ?? [];
+      if (!list.length) throw new Error("No chord charts were found online. Paste one below instead.");
+      // Try the best few charts until one gives chords.
+      for (const src of list.slice(0, 3)) {
+        if (await readChart(src.url)) return;
+      }
+      throw new Error("Couldn't read chords from the charts found (they may need a login). Open a link and paste the chart below.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setSearching(false);
+      setProgress("");
     }
   }
 
@@ -76,10 +138,29 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
       </div>
 
       <div className="space-y-2">
-        <button className="btn btn-sm" disabled={searching} onClick={findCharts}>
-          {searching ? "Searching the web…" : "🔎 Find chord charts online"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => autoAdd()}>
+            ✨ Find &amp; add chords automatically
+          </button>
+          <button className="btn btn-sm" disabled={busy} onClick={findCharts}>
+            {searching ? "Searching the web…" : "🔎 Just show me chord charts"}
+          </button>
+        </div>
+        {progress && <p className="text-sm text-muted">{progress}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {auto && (
+          <div className="rounded-lg bg-green-500/10 p-3 text-sm text-green-800 dark:text-green-300">
+            Chords added to {auto.matched} of {auto.total} {LANG_NAMES[song.sourceLang]} lines
+            {auto.key ? ` (chart key: ${auto.key})` : ""}, from{" "}
+            <a href={auto.url} target="_blank" rel="noopener noreferrer" className="underline">
+              {new URL(auto.url).hostname.replace(/^www\./, "")}
+            </a>
+            .
+            <p className="mt-1 text-xs opacity-80">
+              This is a draft read by AI: check it against the chart before Sunday. Undo removes it.
+            </p>
+          </div>
+        )}
         {search && (
           <div className="rounded-lg border border-border p-3 text-sm">
             <div className="font-medium">
@@ -94,7 +175,10 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
                     <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-accent underline">
                       {s.title || s.url}
                     </a>{" "}
-                    <span className="text-xs text-muted">{new URL(s.url).hostname.replace(/^www\./, "")}</span>
+                    <span className="text-xs text-muted">{new URL(s.url).hostname.replace(/^www\./, "")}</span>{" "}
+                    <button className="btn btn-sm ml-1" disabled={busy} onClick={() => autoAdd([s])}>
+                      Use this chart
+                    </button>
                   </li>
                 ))}
               </ul>

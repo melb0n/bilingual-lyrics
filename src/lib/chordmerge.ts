@@ -134,3 +134,54 @@ export function applyChordChart(song: Song, chartText: string, lang: Lang, alsoO
 
   return { song: { ...song, sections, key: song.key || doc.key }, matched, total, unmatched, key: doc.key };
 }
+
+/** A section's non-empty lines in one language, in order (what is sent to have chords placed). */
+export function sectionLines(section: Song["sections"][number], lang: Lang): string[] {
+  return section.slides.flatMap((sl) => sl[lang].split("\n")).filter((l) => l.trim());
+}
+
+/**
+ * Put chorded lines (one per non-empty line of each section, "" for none) onto the song.
+ * With `alsoOther`, chords are copied onto the other language's matching lines by word position.
+ */
+export function applyLineChords(
+  song: Song,
+  lang: Lang,
+  bySection: Map<string, string[]>,
+  alsoOther: boolean,
+): { song: Song; matched: number; total: number } {
+  const other = otherLang(lang);
+  let matched = 0;
+  let total = 0;
+  const sections = song.sections.map((sec) => {
+    const chorded = bySection.get(sec.id);
+    if (!chorded) return sec;
+    let k = 0;
+    return {
+      ...sec,
+      slides: sec.slides.map((sl): Slide => {
+        const lines = sl[lang].split("\n");
+        const withChords = lines.map((line) => {
+          if (!line.trim()) return line;
+          total++;
+          const c = chorded[k++];
+          if (c && hasChords(c) && stripChords(c) === line.trim()) {
+            matched++;
+            return c;
+          }
+          return line;
+        });
+        if (!withChords.some(hasChords)) return sl;
+        const chords: Slide["chords"] = { ...sl.chords, [lang]: withChords.join("\n") };
+        if (alsoOther && sl[other].trim()) {
+          const projected = sl[other]
+            .split("\n")
+            .map((l, i) => (withChords[i] && hasChords(withChords[i]) ? projectChords(withChords[i], l) : l));
+          if (projected.some(hasChords)) chords[other] = projected.join("\n");
+        }
+        return { ...sl, chords };
+      }),
+    };
+  });
+  return { song: { ...song, sections }, matched, total };
+}
