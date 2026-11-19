@@ -47,6 +47,18 @@ export default function StylePanel({ style, onChange }: { style: SongStyle; onCh
           <input type="color" className="h-9 w-full rounded" value={style.background} onChange={(e) => set("background", e.target.value)} />
         </div>
       </div>
+      <div>
+        <label className="label">Chords in the .pro file (stage display)</label>
+        <select
+          className="input"
+          value={style.stageChords ?? "main"}
+          onChange={(e) => set("stageChords", e.target.value as SongStyle["stageChords"])}
+        >
+          <option value="main">Original language only</option>
+          <option value="both">Both languages</option>
+          <option value="none">No chords</option>
+        </select>
+      </div>
       <p className="text-xs text-muted">Background is for preview only; ProPresenter uses your theme or media.</p>
     </div>
   );

@@ -25,8 +25,10 @@ A private tool for turning worship songs into bilingual ProPresenter slides
   chords on translated lines too. Edit chords with "Show chords" in the editor.
 - **Chord sheet** printout (chords above English and Spanish) and **ChordPro export** (English, Spanish, or both)
 - **Download as ProPresenter 7 `.pro`** in the "Como Dijiste - Bilingual" layout: two text boxes,
-  section groups with colors and hot keys. Chords are written as ProPresenter chord attributes for the stage
-  display (experimental: not yet verified against a ProPresenter file that has chords)
+  section groups with colors and hot keys. Chords are written the way ProPresenter/MultiTracks store them
+  (chord ranges, lines of chords alone, and the song key in `music`), following the spec and test data of
+  github.com/greyshirtguy/pro7chordeditorwin, so they can be shown on a stage display with the stage
+  layout's "Chords" option. Choose which language's box carries chords in the Style panel.
 
 ## About the .pro format
 ProPresenter 7 files are Google Protocol Buffers. The schema in `src/lib/pro/schema.json` is generated from the

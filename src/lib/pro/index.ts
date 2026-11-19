@@ -7,7 +7,8 @@ import * as protobuf from "protobufjs/light";
 import { chordSegments } from "../chordpro";
 import { langScore, detectLang } from "../lang";
 import { DEFAULT_STYLE, newId, otherLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
-import { rtfToText, textToRtf } from "./rtf";
+import { decodeRtfBytes, rtfToRawText, rtfToText, textToRtf } from "./rtf";
+import { keyToMusic, musicToKey, ranges } from "./chords";
 import schema from "./schema.json";
 import template from "./template.json";
 
@@ -51,6 +52,7 @@ const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
 /* ------------------------------- Import ------------------------------- */
 
 export interface ImportedSong {
+  key?: string;
   title: string;
   sourceLang: Lang;
   sections: Section[];
@@ -66,16 +68,40 @@ interface Box {
   attrs?: Obj;
 }
 
-/** Insert ProPresenter chord attributes (character ranges) into the text as inline [chords]. */
-function applyChordAttributes(text: string, attrs: Obj | undefined): string | undefined {
+const PLACEHOLDER = /[\u200b\u2001]/g; // stand-ins for chords on lines with no words
+
+/**
+ * Insert ProPresenter chord attributes into the box's exact text as inline [chords],
+ * then tidy it for display. Only `range.start` is trusted, as the spec says.
+ */
+function applyChordAttributes(raw: string, attrs: Obj | undefined): string | undefined {
   const marks = ((attrs?.custom_attributes ?? []) as Obj[])
-    .filter((a) => typeof a.chord === "string" && a.chord)
-    .map((a) => ({ pos: Math.min(Math.max(0, a.range?.start ?? 0), text.length), chord: a.chord as string }))
+    .filter((a) => typeof a.chord === "string" && a.chord.trim())
+    .map((a) => ({ pos: Math.min(Math.max(0, a.range?.start ?? 0), raw.length), chord: (a.chord as string).trim() }))
     .sort((a, b) => b.pos - a.pos);
   if (!marks.length) return undefined;
-  let out = text;
+  let out = raw;
   for (const { pos, chord } of marks) out = out.slice(0, pos) + `[${chord}]` + out.slice(pos);
-  return out;
+  // Stand-ins of a line of chords alone become plain spaces between the chords: "[C] [G] [D]".
+  return out
+    .replace(/\u2001/g, " ")
+    .replace(/\u200b/g, "")
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
+}
+
+/** Plain words of chorded text, line for line (a line of chords alone becomes an empty line). */
+function wordsOf(chorded: string): string {
+  return chorded
+    .split("\n")
+    .map((l) => l.replace(/\[[^\]\n]*\]/g, "").trim())
+    .join("\n");
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
 /** Plain text plus chord positions (UTF-16 offsets, lines joined with \n) from inline ChordPro text. */
@@ -85,7 +111,17 @@ function chordMarks(chorded: string): { text: string; marks: { pos: number; chor
   let offset = 0;
   for (const line of chorded.split("\n")) {
     let plain = "";
-    for (const seg of chordSegments(line)) {
+    const segs = chordSegments(line);
+    const names = segs.filter((s) => s.chord).map((s) => s.chord);
+    if (names.length && !segs.some((s) => s.text.trim())) {
+      // A line of chords alone: one zero-width space per chord, em quads between (as MultiTracks writes it).
+      plain = names.map(() => "\u200b").join("\u2001");
+      names.forEach((chord, k) => marks.push({ pos: offset + k * 2, chord }));
+      lines.push(plain);
+      offset += plain.length + 1;
+      continue;
+    }
+    for (const seg of segs) {
       if (seg.chord) marks.push({ pos: offset + plain.length, chord: seg.chord });
       plain += seg.text;
     }
@@ -102,8 +138,11 @@ function slideBoxes(cue: Obj | undefined): Box[] {
     .map((e) => e.element)
     .filter((el) => el?.text?.rtf_data)
     .map((el) => {
-      const text = rtfToText(atob(el.text.rtf_data));
-      return { y: el.bounds?.origin?.y ?? 0, text, chords: applyChordAttributes(text, el.text.attributes), attrs: el.text.attributes };
+      const rtf = decodeRtfBytes(b64ToBytes(el.text.rtf_data));
+      const chords = applyChordAttributes(rtfToRawText(rtf), el.text.attributes);
+      // With chords, take the words from the chorded text so the two stay line for line.
+      const text = chords ? wordsOf(chords) : rtfToText(rtf).replace(PLACEHOLDER, "").trim();
+      return { y: el.bounds?.origin?.y ?? 0, text, chords, attrs: el.text.attributes };
     })
     .sort((a, b) => a.y - b.y);
 }
@@ -127,7 +166,8 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
 
   const raw = groups.map((g) => ({
     name: g.name,
-    slides: g.cueIds.map((id) => slideBoxes(cueById.get(id))).filter((boxes) => boxes.some((b) => b.text.trim())),
+    // Keep slides with words, and slides that are only chords (an intro, a turnaround).
+    slides: g.cueIds.map((id) => slideBoxes(cueById.get(id))).filter((boxes) => boxes.some((b) => b.text.trim() || b.chords)),
   }));
 
   const allSlides = raw.flatMap((g) => g.slides);
@@ -177,7 +217,9 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   const sourceLang: Lang = filled("en") ? "en" : filled("es") ? "es" : singleLang;
 
   const title = fileName.replace(/\.pro$/i, "").replace(/\s*-\s*bilingual$/i, "").trim() || doc.name || "Untitled";
-  return { title, sourceLang, sections, style, bilingual };
+  // Chords in the file are written in the song's original key.
+  const key = musicToKey(doc.music?.original);
+  return { title, sourceLang, sections, style, bilingual, ...(key ? { key } : {}) };
 }
 
 /* ------------------------------- Export ------------------------------- */
@@ -212,13 +254,15 @@ function textElement(plainText: string, chorded: string | undefined, bounds: Obj
   t.element.text.attributes.text_solid_fill = { red: r / 255, green: g / 255, blue: b / 255, alpha: 1 };
   let text = plainText;
   if (chorded) {
-    // Chords for the stage display (experimental: positions follow ProPresenter's character ranges).
+    // Chords for the stage display: each over its stretch of the line, as ProPresenter/MultiTracks write them.
     const parsed = chordMarks(chorded);
     text = parsed.text;
-    t.element.text.attributes.custom_attributes = parsed.marks.map(({ pos, chord }) => ({
-      range: { start: pos, end: Math.min(pos + 1, Math.max(text.length, pos)) },
-      chord,
-    }));
+    const written = ranges(text, parsed.marks.map(({ pos, chord }) => ({ at: pos, name: chord })));
+    if (written.length)
+      t.element.text.attributes.custom_attributes = written.map((r) => ({
+        range: { start: r.start, end: r.end },
+        chord: r.name,
+      }));
   }
   const rtf = textToRtf(text, {
     postScriptName: ps,
@@ -237,6 +281,9 @@ export function exportPro(song: Song): Uint8Array {
 
   const cues: Obj[] = [];
   const cueGroups: Obj[] = [];
+  const stageChords = style.stageChords ?? "main";
+  const chordsFor = (slide: Slide, lang: Lang) =>
+    stageChords === "both" || (stageChords === "main" && lang === song.sourceLang) ? slide.chords?.[lang] : undefined;
 
   for (const section of song.sections) {
     const ids: Obj[] = [];
@@ -259,8 +306,8 @@ export function exportPro(song: Song): Uint8Array {
                   uuid: uuid(),
                   // Same order as the template file: bottom box first, then top box.
                   elements: [
-                    textElement(slide[bottom], slide.chords?.[bottom], template.bottomBounds, style),
-                    textElement(slide[top], slide.chords?.[top], template.topBounds, style),
+                    textElement(slide[bottom], chordsFor(slide, bottom), template.bottomBounds, style),
+                    textElement(slide[top], chordsFor(slide, top), template.topBounds, style),
                   ],
                 },
                 notes: clone(template.notes),
@@ -295,7 +342,8 @@ export function exportPro(song: Song): Uint8Array {
     cue_groups: cueGroups,
     cues,
     ccli: { song_title: song.title, ...(song.artist ? { author: song.artist } : {}) },
-    ...(song.key ? { music_key: song.key } : {}),
+    // The key ProPresenter shows and transposes chords from (original = key the chords are written in).
+    ...(keyToMusic(song.key) ? { music: { original: keyToMusic(song.key), user: keyToMusic(song.key) } } : {}),
     timeline: clone(template.timeline),
   };
   const err = Presentation.verify(Presentation.fromObject(obj));

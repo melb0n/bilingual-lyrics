@@ -10,10 +10,23 @@ const CP1252: Record<number, number> = {
   0x99: 0x2122, 0x9a: 0x0161, 0x9b: 0x203a, 0x9c: 0x0153, 0x9e: 0x017e, 0x9f: 0x0178,
 };
 
-/** Extract plain text (paragraphs as lines) from RTF. */
+/** Extract plain text (paragraphs as lines) from RTF, tidied for display. */
 export function rtfToText(rtf: string): string {
+  return rtfToRawText(rtf)
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
+}
+
+/**
+ * The box's exact plain text, as ProPresenter counts it for chord places:
+ * every paragraph or line break is one "\n", nothing trimmed.
+ */
+export function rtfToRawText(rtf: string): string {
   let out = "";
-  const skipStack: boolean[] = [false];
+  // Both "skip this destination" and the \uc count are scoped to their { } group.
+  const stack: { skip: boolean; uc: number }[] = [];
   let skip = false;
   let ucSkip = 1;
   let pendingSkip = 0; // chars to skip after \uN
@@ -21,19 +34,26 @@ export function rtfToText(rtf: string): string {
   while (i < rtf.length) {
     const ch = rtf[i];
     if (ch === "{") {
-      skipStack.push(skip);
+      stack.push({ skip, uc: ucSkip });
       i++;
       // {\* destination} is ignorable
       if (rtf.startsWith("\\*", i)) skip = true;
       continue;
     }
     if (ch === "}") {
-      skip = skipStack.pop() ?? false;
+      const top = stack.pop();
+      skip = top?.skip ?? false;
+      ucSkip = top?.uc ?? 1;
       i++;
       continue;
     }
     if (ch === "\\") {
       const next = rtf[i + 1];
+      if (next === "\n" || next === "\r") {
+        if (!skip) out += "\n";
+        i += next === "\r" && rtf[i + 2] === "\n" ? 3 : 2;
+        continue;
+      }
       if (next === "\\" || next === "{" || next === "}") {
         if (!skip) out += next;
         i += 2;
@@ -48,7 +68,10 @@ export function rtfToText(rtf: string): string {
       }
       const m = /^\\([a-zA-Z]+)(-?\d+)? ?/.exec(rtf.slice(i, i + 40));
       if (!m) {
-        i += 2; // other control symbol, e.g. \~ \-
+        // Control symbols: \~ non-breaking space, \_ non-breaking hyphen, \- optional hyphen (invisible).
+        if (!skip && next === "~") out += "\u00a0";
+        else if (!skip && next === "_") out += "\u2011";
+        i += 2;
         continue;
       }
       const [whole, word, arg] = m;
@@ -76,11 +99,7 @@ export function rtfToText(rtf: string): string {
     if (!skip) out += ch;
     i++;
   }
-  return out
-    .split("\n")
-    .map((l) => l.trimEnd())
-    .join("\n")
-    .replace(/^\n+|\n+$/g, "");
+  return out;
 }
 
 function escapeRtf(text: string): string {
@@ -118,4 +137,13 @@ export function textToRtf(text: string, style: RtfStyle): string {
     `\\fs${Math.round(style.sizePt * 2)}\\expnd0\\expndtw0\\CocoaLigature1\\cf1\\strokewidth0\\strokec1\\nosupersub\\ulc0\\highlight2\\cb2 `;
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   return header + lines.map((l) => para + escapeRtf(l)).join("\\par") + "}";
+}
+
+/** Turn a text box's RTF bytes into a string: UTF-8 if valid (characters written straight in), else Windows-1252. */
+export function decodeRtfBytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
 }
