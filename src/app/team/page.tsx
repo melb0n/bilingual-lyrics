@@ -18,7 +18,7 @@ const ROLES: Role[] = ["admin", "editor", "viewer"];
 const DESCRIPTIONS: Record<Role, string> = {
   admin: "Everything an Editor can do, plus manage people and roles, the Planning Center connection, and settings.",
   editor: "Create and edit songs, use AI translation and chord tools, download .pro files, and send songs to Planning Center.",
-  viewer: "See every song, print lyric and chord sheets, and download .pro and ChordPro files. Can't change anything.",
+  viewer: "See every song, print lyric and chord sheets, and download .pro files. Can't change anything.",
 };
 
 function ago(iso: string) {

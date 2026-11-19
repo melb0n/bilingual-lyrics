@@ -16,7 +16,7 @@ import ReadOnlySong from "@/components/ReadOnlySong";
 import { canEdit, useMe } from "@/lib/useMe";
 import type { TranslationSearchResult } from "@/app/api/find-translation/route";
 import StylePanel from "@/components/StylePanel";
-import { chordedText, hasChords, reconcileChords, stripChords, toChordPro, type ChordProMode } from "@/lib/chordpro";
+import { chordedText, hasChords, reconcileChords, stripChords } from "@/lib/chordpro";
 import { LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song } from "@/lib/types";
 
 type SaveState = "saved" | "dirty" | "saving" | "error";
@@ -266,11 +266,6 @@ function Editor() {
     }
   }
 
-  function downloadChordPro(mode: ChordProMode) {
-    if (!song) return;
-    const suffix = mode === "both" ? "Bilingual" : LANG_NAMES[mode];
-    download(`${safeName(song.title)} - ${suffix}.cho`, toChordPro(song, mode), "text/plain;charset=utf-8");
-  }
 
   async function remove() {
     if (!song || !confirm(`Delete “${song.title}”? This can't be undone.`)) return;
@@ -292,16 +287,6 @@ function Editor() {
           <Link href={`/songs/${song.id}/print`} className="btn btn-sm">
             Print
           </Link>
-          <details className="relative">
-            <summary className="btn btn-sm list-none">ChordPro ▾</summary>
-            <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
-              {(["en", "es", "both"] as ChordProMode[]).map((m) => (
-                <button key={m} className="btn btn-sm w-full justify-start border-0" onClick={() => downloadChordPro(m)}>
-                  {m === "both" ? "Both languages" : LANG_NAMES[m]} (.cho)
-                </button>
-              ))}
-            </div>
-          </details>
           <button className="btn btn-sm" onClick={downloadPro}>
             Download .pro
           </button>
@@ -412,16 +397,6 @@ function Editor() {
         <Link href={`/songs/${song.id}/print`} className="btn btn-sm">
           Print
         </Link>
-        <details className="relative">
-          <summary className="btn btn-sm list-none">ChordPro ▾</summary>
-          <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
-            {(["en", "es", "both"] as ChordProMode[]).map((m) => (
-              <button key={m} className="btn btn-sm w-full justify-start border-0" onClick={() => downloadChordPro(m)}>
-                {m === "both" ? "Both languages" : LANG_NAMES[m]} (.cho)
-              </button>
-            ))}
-          </div>
-        </details>
         <button className="btn btn-sm" onClick={downloadPro}>
           Download .pro
         </button>

@@ -34,7 +34,7 @@ export default function StylePanel({
           title="Arial Bold 100pt, all caps, white top box, yellow bottom box, text scaled to fit"
           onClick={() => onChange({ ...style, ...VB_THEME_STYLE })}
         >
-          Use VB Bilingual Lyrics look
+          Use bold all-caps preset
         </button>
       </div>
       <div>

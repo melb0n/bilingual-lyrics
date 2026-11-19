@@ -104,7 +104,7 @@ export function summarize(song: Song): SongSummary {
   };
 }
 
-/** The church's "VB Bilingual Lyrics" ProPresenter theme. */
+/** Bold all-caps preset (Arial Bold 100, white top / light-yellow bottom, scaled to fit). */
 export const VB_THEME_STYLE: Partial<SongStyle> = {
   font: "Arial",
   fontSize: 100,
