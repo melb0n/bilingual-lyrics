@@ -1,9 +1,9 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropic, describeApiError, MODEL } from "@/lib/anthropic";
 import { NextResponse } from "next/server";
 
-const client = new Anthropic();
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+const client = anthropic;
 
 export interface Source {
   title: string;
@@ -66,6 +66,8 @@ export async function searchAndReport<T extends { sources?: Source[] }>(
     if (error instanceof Anthropic.RateLimitError) {
       return NextResponse.json({ error: "Too many requests. Wait a moment and try again." }, { status: 429 });
     }
+    const friendly = describeApiError(error);
+    if (friendly) return NextResponse.json({ error: friendly }, { status: 402 });
     if (error instanceof Anthropic.APIError) {
       return NextResponse.json({ error: `AI service error (${error.status}).` }, { status: 502 });
     }

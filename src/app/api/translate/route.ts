@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropic, describeApiError, MODEL } from "@/lib/anthropic";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,8 +9,7 @@ import { LANG_NAMES, type Lang } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 26;
 
-const client = new Anthropic();
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+const client = anthropic;
 
 const Output = z.object({ translations: z.array(z.string()), chords: z.array(z.string()) });
 
@@ -97,6 +97,8 @@ export async function POST(req: Request) {
     if (error instanceof Anthropic.RateLimitError) {
       return NextResponse.json({ error: "Too many requests. Wait a moment and try again." }, { status: 429 });
     }
+    const friendly = describeApiError(error);
+    if (friendly) return NextResponse.json({ error: friendly }, { status: 402 });
     if (error instanceof Anthropic.APIError) {
       return NextResponse.json({ error: `AI service error (${error.status}).` }, { status: 502 });
     }

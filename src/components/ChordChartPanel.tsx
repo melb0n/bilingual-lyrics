@@ -1,5 +1,6 @@
 "use client";
 
+import { friendlyError } from "@/lib/errors";
 import { useState } from "react";
 import type { ChordSearchResult } from "@/app/api/find-chords/route";
 import type { ChordsFromUrlResult } from "@/app/api/chords-from-url/route";
@@ -48,7 +49,7 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Search failed (${res.status})`);
+      if (!res.ok) throw new Error(friendlyError(data.error, res.status));
       setSearch(data as ChordSearchResult);
       return data as ChordSearchResult;
     } catch (e) {
@@ -81,7 +82,7 @@ export default function ChordChartPanel({ song, onApply, onClose }: Props) {
           body: JSON.stringify({ url, title: song.title, sectionName: sec.name, lang, lines, otherLines: sectionLines(sec, other) }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `Couldn't read the chart (${res.status})`);
+        if (!res.ok) throw new Error(friendlyError(data.error, res.status));
         r = data as ChordsFromUrlResult;
         cache.set(cacheKey, r);
         // A page that can't be read gives up on the first section rather than trying every one.

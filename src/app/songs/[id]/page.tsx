@@ -1,5 +1,6 @@
 "use client";
 
+import { friendlyError } from "@/lib/errors";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -41,7 +42,7 @@ async function requestTranslation(
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Translation failed (${res.status})`);
+  if (!res.ok) throw new Error(friendlyError(data.error, res.status));
   return { translations: data.translations as string[], chords: (data.chords as string[]) ?? [] };
 }
 
@@ -225,7 +226,7 @@ function Editor() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Search failed (${res.status})`);
+      if (!res.ok) throw new Error(friendlyError(data.error, res.status));
       setSearchResult(data as TranslationSearchResult);
       return data as TranslationSearchResult;
     } catch (e) {

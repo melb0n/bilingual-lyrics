@@ -43,6 +43,9 @@ ProPresenter 18.4. Always open exported files in ProPresenter and check them bef
    - `ANTHROPIC_API_KEY` — from console.anthropic.com
    - `TEAM_PASSWORD` — the password your team will use to sign in
    - `ANTHROPIC_MODEL` *(optional)* — defaults to `claude-opus-5-5`
+
+   AI requests always go straight to api.anthropic.com with this key (billed by Anthropic). Netlify's
+   AI Gateway, if enabled, is not used, so AI calls don't consume Netlify credits.
 3. Trigger a deploy. Netlify Blobs needs no setup.
 
 ## Local development
