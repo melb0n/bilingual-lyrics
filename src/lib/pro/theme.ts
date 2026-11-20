@@ -1,11 +1,11 @@
 /**
  * Build a ProPresenter theme ("Theme" file = rv.data.Template.Document) whose text boxes
  * match the songs this site exports: same positions, fonts, colors and box names.
- * A theme on disk is a folder (named after the theme) holding this file, plus an optional Assets folder.
+ * A theme on disk is a folder (named after the theme) holding this file, plus an Assets folder.
  */
 import { boxNameFor, proRoot, textElement } from "./index";
 import template from "./template.json";
-import { otherLang, type Lang, type SongStyle } from "../types";
+import { EXAMPLE_TITLE, otherLang, type Lang, type SongStyle } from "../types";
 
 const TemplateDocument = proRoot.lookupType("rv.data.Template.Document");
 
@@ -25,11 +25,18 @@ function uuid() {
  * Theme slides: both languages (main on top / main on bottom) and each language alone.
  * `mainLang` only matters for language-named boxes ("English" / "Español").
  */
-/** A zip holding "<name>/Theme", ready to unzip into ProPresenter's Themes folder. */
+/**
+ * A ".proTheme" file: a zip holding "<name>/Theme" and an empty "<name>/Assets/" folder,
+ * the same layout ProPresenter writes when it exports a theme, so File → Import (or a double-click) brings it in.
+ */
 export async function exportThemeZip(name: string, style: SongStyle, mainLang: Lang = "es"): Promise<Uint8Array> {
   const { zipSync } = await import("fflate");
-  const folder = name.replace(/[\\/:*?"<>|]/g, "").trim() || "Bilingual Lyrics";
-  return zipSync({ [folder]: { Theme: exportTheme(style, mainLang) } });
+  const folder = themeFolderName(name);
+  return zipSync({ [`${folder}/Assets/`]: new Uint8Array(0), [`${folder}/Theme`]: exportTheme(style, mainLang) });
+}
+
+export function themeFolderName(name: string) {
+  return name.replace(/[\\/:*?"<>|]/g, "").trim() || "Bilingual Lyrics";
 }
 
 export function exportTheme(style: SongStyle, mainLang: Lang = "es"): Uint8Array {
@@ -38,8 +45,10 @@ export function exportTheme(style: SongStyle, mainLang: Lang = "es"): Uint8Array
   const secondName = boxNameFor(style.boxNames, "second", second);
   const top = style.color;
   const bottom = style.bottomColor ?? style.color;
-  const box = (name: string, bounds: object, color: string) => {
-    const el = textElement(name, "", undefined, bounds, style, color);
+  // Sample words so the theme shows something in ProPresenter's theme editor; applying a theme keeps the song's own words.
+  const sample = (lang: Lang) => EXAMPLE_TITLE[lang];
+  const box = (name: string, bounds: object, color: string, lang: Lang) => {
+    const el = textElement(name, sample(lang), undefined, bounds, style, color);
     el.info = 2; // a theme's own text box (songs made from a theme mark theirs 3: "from template")
     el.element.text.chord_pro = { color: { alpha: 1 } };
     return el;
@@ -52,10 +61,10 @@ export function exportTheme(style: SongStyle, mainLang: Lang = "es"): Uint8Array
   const doc = {
     application_info: JSON.parse(JSON.stringify(template.application_info)),
     slides: [
-      slide("Bilingual (Main on top)", [box(secondName, template.bottomBounds, bottom), box(mainName, template.topBounds, top)]),
-      slide("Bilingual (Main on bottom)", [box(mainName, template.bottomBounds, bottom), box(secondName, template.topBounds, top)]),
-      slide("Main Language Only", [box(mainName, FULL_BOUNDS, top)]),
-      slide("Second Language Only", [box(secondName, FULL_BOUNDS, top)]),
+      slide("Bilingual (Main on top)", [box(secondName, template.bottomBounds, bottom, second), box(mainName, template.topBounds, top, mainLang)]),
+      slide("Bilingual (Main on bottom)", [box(mainName, template.bottomBounds, bottom, mainLang), box(secondName, template.topBounds, top, second)]),
+      slide("Main Language Only", [box(mainName, FULL_BOUNDS, top, mainLang)]),
+      slide("Second Language Only", [box(secondName, FULL_BOUNDS, top, second)]),
     ],
   };
   const err = TemplateDocument.verify(TemplateDocument.fromObject(doc));

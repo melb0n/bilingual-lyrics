@@ -17,10 +17,10 @@ export default function StylePanel({
   async function downloadTheme() {
     const { exportThemeZip } = await import("@/lib/pro/theme");
     const bytes = await exportThemeZip("Bilingual Lyrics", style, main);
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/octet-stream" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Bilingual Lyrics (ProPresenter theme).zip";
+    a.download = "Bilingual Lyrics.proTheme";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -138,8 +138,9 @@ export default function StylePanel({
           Download ProPresenter theme with this style
         </button>
         <p className="mt-1 text-xs text-muted">
-          A “Bilingual Lyrics” theme whose text boxes match this style and box names. Unzip it into ProPresenter&apos;s
-          Themes folder, then restart ProPresenter.
+          A “Bilingual Lyrics” theme with this song&apos;s font, colors, positions, box names and chords turned on. In
+          ProPresenter choose File → Import → Theme (or double-click the file). Songs from this site already use this
+          layout, so you don&apos;t need to apply it to them.
         </p>
       </div>
     </div>
