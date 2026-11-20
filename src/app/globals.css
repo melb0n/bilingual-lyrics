@@ -8,6 +8,12 @@
   --border: #e2e1dc;
   --accent: #3b5bdb;
   --accent-fg: #ffffff;
+  --surface-2: #f1f0ec;
+  --success: #15803d;
+  --warning: #b45309;
+  --shadow-sm: 0 1px 2px rgb(20 20 15 / 0.05);
+  --shadow-md: 0 1px 2px rgb(20 20 15 / 0.04), 0 8px 24px -8px rgb(20 20 15 / 0.12);
+  --shadow-lg: 0 2px 4px rgb(20 20 15 / 0.04), 0 16px 40px -12px rgb(20 20 15 / 0.22);
 }
 
 /* Dark colors: chosen explicitly (data-theme="dark"), or by the system when no choice was made. */
@@ -19,6 +25,12 @@
   --border: #33332f;
   --accent: #7b93ff;
   --accent-fg: #0d0d0c;
+  --surface-2: #262623;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px -10px rgb(0 0 0 / 0.7);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.45), 0 20px 48px -12px rgb(0 0 0 / 0.75);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -30,6 +42,12 @@
     --border: #33332f;
     --accent: #7b93ff;
     --accent-fg: #0d0d0c;
+    --surface-2: #262623;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px -10px rgb(0 0 0 / 0.7);
+    --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.45), 0 20px 48px -12px rgb(0 0 0 / 0.75);
     color-scheme: dark;
   }
 }
@@ -47,6 +65,9 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-accent: var(--accent);
+  --color-surface-2: var(--surface-2);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
 }
 
@@ -63,10 +84,14 @@ body {
     @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply border-transparent bg-accent text-[var(--accent-fg)] hover:opacity-90 hover:bg-accent;
+    @apply border-transparent bg-accent text-[var(--accent-fg)] shadow-[var(--shadow-sm)] hover:opacity-90 hover:bg-accent;
+  }
+  /* Secondary action: quiet until hovered. */
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-muted hover:border-border hover:bg-surface-2 hover:text-foreground;
   }
   .btn-sm {
     @apply px-2 py-1 text-xs;
@@ -95,6 +120,12 @@ body {
   --border: #d6d5cf;
   --accent: #3b5bdb;
   --accent-fg: #ffffff;
+  --surface-2: #f1f0ec;
+  --success: #15803d;
+  --warning: #b45309;
+  --shadow-sm: 0 1px 2px rgb(20 20 15 / 0.05);
+  --shadow-md: 0 1px 2px rgb(20 20 15 / 0.04), 0 8px 24px -8px rgb(20 20 15 / 0.12);
+  --shadow-lg: 0 2px 4px rgb(20 20 15 / 0.04), 0 16px 40px -12px rgb(20 20 15 / 0.22);
   color: var(--foreground);
   color-scheme: light;
 }

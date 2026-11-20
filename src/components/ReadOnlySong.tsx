@@ -66,7 +66,7 @@ export default function ReadOnlySong({ song }: { song: Song }) {
             ))}
           </div>
         </div>
-        <aside className="lg:sticky lg:top-4 lg:self-start">{slide && <SlidePreview slide={slide} style={song.style} />}</aside>
+        <aside className="lg:sticky lg:top-20 lg:self-start">{slide && <SlidePreview slide={slide} style={song.style} />}</aside>
       </div>
     </main>
   );

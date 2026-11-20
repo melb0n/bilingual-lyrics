@@ -535,7 +535,7 @@ function Editor() {
           </div>
         </section>
 
-        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {selectedSlide && <SlidePreview slide={selectedSlide} style={song.style} />}
           <StylePanel style={song.style} mainLang={song.sourceLang} onChange={(style) => update((s) => ({ ...s, style }))} />
         </aside>

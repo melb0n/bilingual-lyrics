@@ -33,7 +33,7 @@ export default function ThemeToggle() {
           aria-checked={choice === value}
           title={label}
           aria-label={label}
-          className={`px-2 py-1 ${choice === value ? "bg-accent text-[var(--accent-fg)]" : "bg-surface hover:bg-background"}`}
+          className={`px-2 py-1 ${choice === value ? "bg-accent text-[var(--accent-fg)]" : "bg-surface hover:bg-surface-2"}`}
           onClick={() => {
             setChoice(value);
             applyTheme(value);
