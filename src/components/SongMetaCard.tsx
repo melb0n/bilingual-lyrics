@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LANG_NAMES, otherLang, type Song } from "@/lib/types";
+import { EXAMPLE_TITLE, LANG_NAMES, otherLang, withMainLanguage, type Lang, type Song } from "@/lib/types";
 
 type Field = "title" | "translatedTitle" | "artist" | "key" | "bpm" | "timeSignature";
 
@@ -21,8 +21,8 @@ export function metaSummary(song: Song): string {
 export default function SongMetaCard({ song, onChange }: { song: Song; onChange: (patch: Partial<Song>) => void }) {
   const [open, setOpen] = useState(false);
   const fields: [Field, string, string][] = [
-    ["title", `Title (${LANG_NAMES[song.sourceLang]})`, "e.g. Todo Lo Haces Bien"],
-    ["translatedTitle", `Title (${LANG_NAMES[otherLang(song.sourceLang)]})`, "e.g. Something Good"],
+    ["title", `Title (${LANG_NAMES[song.sourceLang]})`, `e.g. ${EXAMPLE_TITLE[song.sourceLang]}`],
+    ["translatedTitle", `Title (${LANG_NAMES[otherLang(song.sourceLang)]})`, `e.g. ${EXAMPLE_TITLE[otherLang(song.sourceLang)]}`],
     ["artist", "Artist", "e.g. Gateway Worship"],
     ["key", "Key", "e.g. A"],
     ["bpm", "BPM", "e.g. 72"],
@@ -48,6 +48,30 @@ export default function SongMetaCard({ song, onChange }: { song: Song; onChange:
       </div>
       {open && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="meta-main-lang">
+              Main language (the original lyrics)
+            </label>
+            <select
+              id="meta-main-lang"
+              className="input sm:max-w-xs"
+              value={song.sourceLang}
+              onChange={(e) => {
+                const next = withMainLanguage(song, e.target.value as Lang);
+                onChange({ sourceLang: next.sourceLang, title: next.title, translatedTitle: next.translatedTitle });
+              }}
+            >
+              {(Object.keys(LANG_NAMES) as Lang[]).map((l) => (
+                <option key={l} value={l}>
+                  {LANG_NAMES[l]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              Lyrics and chords stay as they are. This decides the &ldquo;Main Language&rdquo; box in the .pro, &ldquo;main language&rdquo;
+              chords, and which way new translations go. Which language is on top is set in Style.
+            </p>
+          </div>
           {fields.map(([field, label, placeholder]) => (
             <div key={field} className={field === "title" || field === "translatedTitle" ? "sm:col-span-1" : ""}>
               <label className="label" htmlFor={`meta-${field}`}>

@@ -7,7 +7,7 @@ import { canEdit, useMe } from "@/lib/useMe";
 import { combine, readDoc, rechunk } from "@/lib/align";
 import { parseSong } from "@/lib/parse";
 import { combineRepeats, countRepeats } from "@/lib/repeats";
-import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
+import { DEFAULT_STYLE, EXAMPLE_TITLE, LANG_NAMES, newId, otherLang, type Lang, type Song } from "@/lib/types";
 
 type MetaField = "title" | "translatedTitle" | "artist" | "key" | "bpm" | "timeSignature";
 
@@ -152,8 +152,8 @@ export default function NewSong() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["title", `Title (${LANG_NAMES[sourceLang]})`, "e.g. Todo Lo Haces Bien"],
-                  ["translatedTitle", `Title (${LANG_NAMES[otherLang(sourceLang)]})`, "e.g. Something Good"],
+                  ["title", `Title (${LANG_NAMES[sourceLang]})`, `e.g. ${EXAMPLE_TITLE[sourceLang]}`],
+                  ["translatedTitle", `Title (${LANG_NAMES[otherLang(sourceLang)]})`, `e.g. ${EXAMPLE_TITLE[otherLang(sourceLang)]}`],
                   ["artist", "Artist", "e.g. Gateway Worship"],
                   ["key", "Key", "e.g. A"],
                   ["bpm", "BPM", "e.g. 78"],

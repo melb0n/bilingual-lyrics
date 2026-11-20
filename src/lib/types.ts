@@ -136,3 +136,20 @@ export function otherLang(lang: Lang): Lang {
 export function newId(): string {
   return crypto.randomUUID();
 }
+
+/**
+ * Make `lang` the song's main language. Lyrics and chords stay as they are; the two titles
+ * trade places so each stays with its language (a lone title stays as the main title).
+ */
+export function withMainLanguage(song: Song, lang: Lang): Song {
+  if (song.sourceLang === lang) return song;
+  const swapTitles = Boolean(song.translatedTitle?.trim());
+  return {
+    ...song,
+    sourceLang: lang,
+    ...(swapTitles ? { title: song.translatedTitle!.trim(), translatedTitle: song.title } : {}),
+  };
+}
+
+/** An example title for a language, for form placeholders. */
+export const EXAMPLE_TITLE: Record<Lang, string> = { es: "Todo Lo Haces Bien", en: "Something Good" };
