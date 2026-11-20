@@ -150,8 +150,10 @@ async function upload(filename: string, bytes: Uint8Array, contentType: string):
 }
 
 /**
- * Attach a file to an arrangement, replacing an earlier attachment with the same file name
- * (so re-sending a song doesn't pile up copies). Returns a warning if the old copy couldn't be removed.
+ * Attach a file to an arrangement. If the arrangement already has a file with this name, its contents
+ * are replaced in place, keeping the same attachment, so ProPresenter's Planning Center sync sees an
+ * updated file rather than a new one (a new attachment shows up there as "name-1", "name-2"...).
+ * Returns a warning when that wasn't possible.
  */
 export async function attachFile(
   songId: string,
@@ -160,19 +162,47 @@ export async function attachFile(
   bytes: Uint8Array,
   contentType: string,
 ): Promise<string | null> {
-  let warning: string | null = null;
+  const base = `/songs/${songId}/arrangements/${arrangementId}/attachments`;
+  let same: Resource<{ filename: string }>[] = [];
   try {
-    const existing = await pco<{ data: Resource<{ filename: string }>[] }>(
-      `/songs/${songId}/arrangements/${arrangementId}/attachments?per_page=100`,
-    );
-    for (const a of existing.data.filter((a) => a.attributes.filename === filename)) {
-      await pco(`/songs/${songId}/arrangements/${arrangementId}/attachments/${a.id}`, { method: "DELETE" });
-    }
+    const existing = await pco<{ data: Resource<{ filename: string }>[] }>(`${base}?per_page=100`);
+    same = existing.data.filter((a) => a.attributes.filename === filename);
   } catch {
-    warning = `Couldn't remove an older "${filename}", so there may be two copies.`;
+    /* can't list: just add the file */
   }
   const uploadId = await upload(filename, bytes, contentType);
-  await pco(`/songs/${songId}/arrangements/${arrangementId}/attachments`, {
+  const [keep, ...extras] = same;
+  let warning: string | null = null;
+
+  // Remove leftover duplicates from earlier sends.
+  for (const a of extras) {
+    try {
+      await pco(`${base}/${a.id}`, { method: "DELETE" });
+    } catch {
+      warning = `Couldn't remove an extra copy of "${filename}" in Planning Center.`;
+    }
+  }
+
+  if (keep) {
+    try {
+      await pco(`${base}/${keep.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          data: { type: "Attachment", id: keep.id, attributes: { file_upload_identifier: uploadId, filename } },
+        }),
+      });
+      return warning;
+    } catch (e) {
+      console.warn(`[pco] replacing attachment ${keep.id} in place failed:`, e instanceof Error ? e.message : e);
+      try {
+        await pco(`${base}/${keep.id}`, { method: "DELETE" });
+      } catch {
+        return `Couldn't replace "${filename}" in Planning Center, so there may be two copies.`;
+      }
+      warning = `Planning Center wouldn't update "${filename}" in place, so it was re-attached; ProPresenter may add it as a new copy.`;
+    }
+  }
+  await pco(base, {
     method: "POST",
     body: JSON.stringify({ data: { type: "Attachment", attributes: { file_upload_identifier: uploadId, filename } } }),
   });
