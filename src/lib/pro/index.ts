@@ -6,7 +6,7 @@
 import * as protobuf from "protobufjs/light";
 import { chordSegments } from "../chordpro";
 import { langScore, detectLang } from "../lang";
-import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
+import { DEFAULT_STYLE, LANG_NAMES, newId, otherLang, soloLang, type Lang, type Section, type Slide, type Song, type SongStyle } from "../types";
 import { decodeRtfBytes, rtfToRawText, rtfToText, textToRtf } from "./rtf";
 import { keyToMusic, musicToKey, ranges } from "./chords";
 import schema from "./schema.json";
@@ -388,6 +388,15 @@ export function textElement(
   return t;
 }
 
+/** One box covering both text areas: a language shown alone sits in the middle of the screen. */
+export const FULL_BOUNDS = {
+  origin: { x: template.topBounds.origin.x, y: template.topBounds.origin.y },
+  size: {
+    width: template.topBounds.size.width,
+    height: template.bottomBounds.origin.y + template.bottomBounds.size.height - template.topBounds.origin.y,
+  },
+};
+
 export function exportPro(song: Song): Uint8Array {
   const style = song.style;
   const top = style.topLang;
@@ -414,6 +423,9 @@ export function exportPro(song: Song): Uint8Array {
     const ids: Obj[] = [];
     for (const slide of section.slides) {
       const cueId = id(`cue:${slide.id}`);
+      // A slide in one language only: that box fills the screen; the empty one stays (named) for stage layouts.
+      const solo = soloLang(slide, style);
+      const boundsFor = (lang: Lang, normal: Obj) => (solo === lang ? FULL_BOUNDS : normal);
       ids.push(cueId);
       cues.push({
         ...clone(template.cue),
@@ -435,7 +447,7 @@ export function exportPro(song: Song): Uint8Array {
                       boxName(bottom),
                       slide[bottom],
                       chordsFor(slide, bottom),
-                      template.bottomBounds,
+                      boundsFor(bottom, template.bottomBounds),
                       style,
                       style.bottomColor ?? style.color,
                       id(`slide:${slide.id}:bottom`),
@@ -444,7 +456,7 @@ export function exportPro(song: Song): Uint8Array {
                       boxName(top),
                       slide[top],
                       chordsFor(slide, top),
-                      template.topBounds,
+                      boundsFor(top, template.topBounds),
                       style,
                       style.color,
                       id(`slide:${slide.id}:top`),

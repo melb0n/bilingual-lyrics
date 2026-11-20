@@ -115,6 +115,23 @@ export default function StylePanel({
         </p>
       </div>
       <div>
+        <label className="label" htmlFor="style-single">
+          Slides with only one language
+        </label>
+        <select
+          id="style-single"
+          className="input"
+          value={style.singleLang ?? "center"}
+          onChange={(e) => set("singleLang", e.target.value as SongStyle["singleLang"])}
+        >
+          <option value="center">Center on the screen</option>
+          <option value="keep">Keep in its top / bottom box</option>
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          For songs sung in one language, or slides not translated yet.
+        </p>
+      </div>
+      <div>
         <label className="label">Text box names (for the stage display)</label>
         <select
           className="input"

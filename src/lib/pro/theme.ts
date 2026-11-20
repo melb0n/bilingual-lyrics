@@ -3,19 +3,12 @@
  * match the songs this site exports: same positions, fonts, colors and box names.
  * A theme on disk is a folder (named after the theme) holding this file, plus an Assets folder.
  */
-import { boxNameFor, proRoot, textElement } from "./index";
+import { boxNameFor, FULL_BOUNDS, proRoot, textElement } from "./index";
 import template from "./template.json";
 import { EXAMPLE_TITLE, otherLang, type Lang, type SongStyle } from "../types";
 
 const TemplateDocument = proRoot.lookupType("rv.data.Template.Document");
 
-const FULL_BOUNDS = {
-  origin: { x: template.topBounds.origin.x, y: template.topBounds.origin.y },
-  size: {
-    width: template.topBounds.size.width,
-    height: template.bottomBounds.origin.y + template.bottomBounds.size.height - template.topBounds.origin.y,
-  },
-};
 
 function uuid() {
   return { string: crypto.randomUUID().toUpperCase() };

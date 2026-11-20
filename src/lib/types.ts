@@ -40,6 +40,18 @@ export interface SongStyle {
    * ("Current Slide" text, matching element name). Default "role": "Main Language" / "Second Language".
    */
   boxNames?: "role" | "language" | "main-secondary";
+  /**
+   * Slides with words in only one language: "center" puts them in one box filling the screen
+   * (centered top to bottom), "keep" leaves them in their usual top or bottom box. Default "center".
+   */
+  singleLang?: "center" | "keep";
+}
+
+/** Which language a slide shows alone (the other is empty), when the style centers such slides. */
+export function soloLang(slide: { en: string; es: string }, style: SongStyle): Lang | null {
+  if (style.singleLang === "keep") return null;
+  const en = slide.en.trim(), es = slide.es.trim();
+  return en && !es ? "en" : es && !en ? "es" : null;
 }
 
 export interface Song {
