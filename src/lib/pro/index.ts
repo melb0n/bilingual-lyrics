@@ -60,6 +60,29 @@ function uuid(): { string: string } {
   return { string: crypto.randomUUID().toUpperCase() };
 }
 
+/**
+ * The same text always gives the same UUID, so every download/send of a song carries the same
+ * ProPresenter ids and ProPresenter treats it as the same presentation (not a new file).
+ */
+export function stableUuid(key: string): { string: string } {
+  // Four independent 32-bit FNV-1a style hashes = 128 bits.
+  const parts = [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b].map((seed) => {
+    let h = seed >>> 0;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+      h ^= h >>> 15;
+    }
+    h = Math.imul(h ^ (h >>> 13), 0x5bd1e995) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  });
+  const hex = parts.map((p) => p.toString(16).padStart(8, "0")).join("");
+  // Mark it as a name-based (version 5 style) UUID with the standard variant.
+  const v = hex.slice(0, 12) + "5" + hex.slice(13, 16) + ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16) + hex.slice(17);
+  const u = `${v.slice(0, 8)}-${v.slice(8, 12)}-${v.slice(12, 16)}-${v.slice(16, 20)}-${v.slice(20, 32)}`;
+  return { string: u.toUpperCase() };
+}
+
 const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
 
 /** Text box names, so a stage layout can show one language ("Current Slide" → element matching name). */
@@ -275,7 +298,15 @@ export function importPro(bytes: Uint8Array, fileName: string): ImportedSong {
   const order = ((arr?.group_identifiers ?? []) as Obj[])
     .map((g) => sectionIdByGroup.get(g.string))
     .filter((id): id is string => Boolean(id));
-  return { title, sourceLang, sections, style, bilingual, ...(key ? { key } : {}), ...(order.length ? { order } : {}) };
+  return {
+    title,
+    sourceLang,
+    sections,
+    style,
+    bilingual,
+    ...(key ? { key } : {}),
+    ...(order.length ? { order } : {}),
+  };
 }
 
 /* ------------------------------- Export ------------------------------- */
@@ -307,13 +338,14 @@ export function textElement(
   bounds: Obj,
   style: SongStyle,
   color: string,
+  elementId?: { string: string },
 ): Obj {
   const t = clone(template.element) as Obj;
   t.element.name = name; // lets a stage layout show just this box ("Current Slide" → element matching name)
   const plainPs = PS_NAMES[style.font] ?? style.font.replace(/\s+/g, "");
   const ps = style.bold ? (PS_BOLD[style.font] ?? `${plainPs}-Bold`) : plainPs;
   const [r, g, b] = hexToRgb(color);
-  t.element.uuid = uuid();
+  t.element.uuid = elementId ?? uuid();
   t.element.bounds = clone(bounds);
   t.element.text.attributes.font = {
     name: ps,
@@ -372,26 +404,31 @@ export function exportPro(song: Song): Uint8Array {
       ? slide.chords?.[lang]
       : undefined;
 
+  // Ids derived from the song, its sections and slides: the same on every export.
+  // (Ids from uploaded .pro files are not reused: copies of one file often share the same id.)
+  const id = (part: string) => stableUuid(`${song.id}:${part}`);
+  const presentationId = id("presentation");
+
   const groupIdBySection = new Map<string, Obj>();
   for (const section of song.sections) {
     const ids: Obj[] = [];
     for (const slide of section.slides) {
-      const cueId = uuid();
+      const cueId = id(`cue:${slide.id}`);
       ids.push(cueId);
       cues.push({
         ...clone(template.cue),
         uuid: cueId,
-        completion_target_uuid: uuid(),
-        completion_action_uuid: uuid(),
+        completion_target_uuid: id(`cue:${slide.id}:target`),
+        completion_action_uuid: id(`cue:${slide.id}:action-target`),
         actions: [
           {
             ...clone(template.action),
-            uuid: uuid(),
+            uuid: id(`cue:${slide.id}:action`),
             slide: {
               presentation: {
                 base_slide: {
                   ...clone(template.slide),
-                  uuid: uuid(),
+                  uuid: id(`slide:${slide.id}`),
                   // Same order as the template file: bottom box first, then top box.
                   elements: [
                     textElement(
@@ -401,8 +438,17 @@ export function exportPro(song: Song): Uint8Array {
                       template.bottomBounds,
                       style,
                       style.bottomColor ?? style.color,
+                      id(`slide:${slide.id}:bottom`),
                     ),
-                    textElement(boxName(top), slide[top], chordsFor(slide, top), template.topBounds, style, style.color),
+                    textElement(
+                      boxName(top),
+                      slide[top],
+                      chordsFor(slide, top),
+                      template.topBounds,
+                      style,
+                      style.color,
+                      id(`slide:${slide.id}:top`),
+                    ),
                   ],
                 },
                 notes: clone(template.notes),
@@ -415,7 +461,7 @@ export function exportPro(song: Song): Uint8Array {
     }
     const key = hotKeyFor(section.name);
     const color = GROUP_COLORS.find(([re]) => re.test(section.name))?.[1];
-    const groupUuid = uuid();
+    const groupUuid = id(`group:${section.id}`);
     groupIdBySection.set(section.id, groupUuid);
     cueGroups.push({
       group: {
@@ -423,7 +469,7 @@ export function exportPro(song: Song): Uint8Array {
         name: section.name,
         ...(color ? { color } : {}),
         ...(key ? { hotKey: { code: `KEY_CODE_ANSI_${key}` } } : {}),
-        application_group_identifier: uuid(),
+        application_group_identifier: id(`group:${section.id}:library`),
         application_group_name: section.name,
       },
       cue_identifiers: ids,
@@ -432,12 +478,12 @@ export function exportPro(song: Song): Uint8Array {
 
   // Song order → a ProPresenter arrangement (each group is stored once, the arrangement repeats it).
   const order = (song.order ?? []).map((id) => groupIdBySection.get(id)).filter((g): g is Obj => Boolean(g));
-  const arrangement = order.length ? { uuid: uuid(), name: "Song order", group_identifiers: order } : null;
+  const arrangement = order.length ? { uuid: id("arrangement"), name: "Song order", group_identifiers: order } : null;
 
   const obj = {
     ...(arrangement ? { arrangements: [arrangement], selected_arrangement: arrangement.uuid } : {}),
     application_info: clone(template.application_info),
-    uuid: uuid(),
+    uuid: presentationId,
     name: song.title,
     last_modified_date: { seconds: String(Math.floor(Date.now() / 1000)) },
     background: clone(template.background),
