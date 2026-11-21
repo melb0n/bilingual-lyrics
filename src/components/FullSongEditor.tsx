@@ -176,7 +176,7 @@ export default function FullSongEditor({ song, onChange, onUndo, canUndo, select
           value={text}
           placeholder={
             which === "b"
-              ? `Paste the whole song in ${LANG_NAMES[lang]}, or use "Translate missing" above.\n\n{comment: Verse 1}\n…`
+              ? `Paste the whole song in ${LANG_NAMES[lang]}, or type it in.\n\n{comment: Verse 1}\n…`
               : undefined
           }
           onChange={(e) => {

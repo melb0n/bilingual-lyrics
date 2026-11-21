@@ -54,7 +54,7 @@ export default function NewSong() {
     [sections, sourceLang],
   );
 
-  async function save(song: Song, translate: boolean) {
+  async function save(song: Song) {
     const res = await fetch("/api/songs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,7 +64,7 @@ export default function NewSong() {
       setBusy(false);
       return setError("Couldn't save the song. Try again.");
     }
-    router.push(`/songs/${song.id}${translate ? "?translate=1" : ""}`);
+    router.push(`/songs/${song.id}`);
   }
 
   async function create() {
@@ -92,7 +92,7 @@ export default function NewSong() {
       song = rechunk(song, linesPerSlide);
     }
     if (combine_) song = combineRepeats(song).song;
-    await save(song, !hasSecond);
+    await save(song);
   }
 
   async function upload(file: File) {
@@ -113,10 +113,9 @@ export default function NewSong() {
       const imported = importPro(bytes, file.name);
       const slides = imported.sections.flatMap((s) => s.slides);
       if (slides.length === 0) throw new Error("No lyrics found in that file.");
-      const missing = slides.some((s) => !s.en.trim() || !s.es.trim());
       const { bilingual: _bilingual, ...rest } = imported;
       void _bilingual;
-      await save({ id: newId(), updatedAt: new Date().toISOString(), ...rest }, missing);
+      await save({ id: newId(), updatedAt: new Date().toISOString(), ...rest });
     } catch (e) {
       setBusy(false);
       setError(
@@ -213,7 +212,7 @@ export default function NewSong() {
           </div>
           <div>
             <label className="label">
-              {LANG_NAMES[otherLang(sourceLang)]} version (optional — leave empty and the AI will translate)
+              {LANG_NAMES[otherLang(sourceLang)]} version (optional — you can add it later)
             </label>
             <textarea
               className="input min-h-[200px] font-mono"
@@ -242,7 +241,7 @@ export default function NewSong() {
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button className="btn btn-primary" disabled={busy || !title || slideCount === 0} onClick={create}>
-            {busy ? "Saving…" : secondText.trim() ? `Create song (${slideCount} slides)` : `Create song & find translation (${slideCount} slides)`}
+            {busy ? "Saving…" : `Create song (${slideCount} slides)`}
           </button>
         </section>
 

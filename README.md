@@ -14,8 +14,9 @@ This guide is written so another church can set up its own copy from scratch.
 - Create a song by pasting lyrics, a chord chart (chords above lyrics), or ChordPro, or by uploading a
   ProPresenter `.pro` or ChordPro file. Title, artist, key, BPM and time signature are read from
   ChordPro tags automatically.
-- Paste both languages at once, or let the AI translate the missing one. Before translating, it can
-  **search the web for an official translation** of the song (it shows links; it never copies lyrics).
+- Paste both languages at once, or type the translation in yourself (translation is a manual step; the
+  app never machine-translates). **"Find official translation"** can search the web for a published
+  translation of the song (it shows links; it never copies lyrics).
 - **Full-song editor**: each language side by side, lined up by section and line, with warnings when
   line counts don't match, "lock chords" to copy chords onto the other language, slide breaks every N
   lines, transpose, and undo. A slide-by-slide view is also available.
@@ -51,7 +52,7 @@ This guide is written so another church can set up its own copy from scratch.
 | **GitHub** | Holds your copy of the code | Free |
 | **Netlify** | Hosts the site and stores songs (Netlify Blobs) | Free plan is usually enough |
 | **Planning Center** (an organization admin) | Sign-in, roles, send/import songs | Free API |
-| **Anthropic** *or* **Google Gemini** | Translation, official-translation search, chord search | Anthropic: pay as you go (roughly cents per song). Gemini: free tier available |
+| **Anthropic** *or* **Google Gemini** | Official-translation search, chord search (optional) | Anthropic: pay as you go (roughly cents per song). Gemini: free tier available |
 | **ProPresenter 7** | Opening the `.pro` files | — |
 
 ---
@@ -166,16 +167,16 @@ Then **Deploys → Trigger deploy → Deploy site** (environment changes only ap
 - **Slide layout** (box positions, fonts): `src/lib/pro/template.json`, taken from a real ProPresenter
   file. Box positions are `topBounds` / `bottomBounds` (1920×1080).
 - **Languages:** the app is built for English ⇄ Spanish (`LANG_NAMES` in `src/lib/types.ts`, the
-  language detection in `src/lib/lang.ts`, and the translation prompt in `src/app/api/translate/route.ts`).
+  language detection in `src/lib/lang.ts`).
 
 ---
 
 ## Costs
 - **No AI cost:** editing, chords you paste, transpose, printing, PDFs, `.pro` downloads, sign-in, Team,
   Send / Import / Update with Planning Center.
-- **AI cost** (Anthropic or Gemini), only when used: translating, the automatic official-translation
-  search when a new song has one language, "Find official translation", "Find chord charts" and
-  "Find & add chords automatically" (each section reads the chart page again).
+- **AI cost** (Anthropic or Gemini), only when used: "Find official translation", "Find chord charts" and
+  "Find & add chords automatically" (each section reads the chart page again). Translating is manual and
+  costs nothing.
 - **Netlify:** page and function requests count toward Netlify's plan allowance; normal use is small.
 
 ---

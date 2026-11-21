@@ -2,7 +2,7 @@
 
 import { friendlyError } from "@/lib/errors";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import FullSongEditor from "@/components/FullSongEditor";
 import Header from "@/components/Header";
@@ -21,35 +21,6 @@ import { chordedText, hasChords, reconcileChords, stripChords } from "@/lib/chor
 import { LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song } from "@/lib/types";
 
 type SaveState = "saved" | "dirty" | "saving" | "error";
-
-function sourceText(song: Song): string {
-  return song.sections
-    .map((s) => `${s.name}\n${s.slides.map((sl) => sl[song.sourceLang]).join("\n")}`)
-    .join("\n\n");
-}
-
-async function requestTranslation(
-  song: Song,
-  section: Section,
-  slides: Slide[],
-): Promise<{ translations: string[]; chords: string[] }> {
-  const res = await fetch("/api/translate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: song.sourceLang,
-      to: otherLang(song.sourceLang),
-      title: song.title,
-      sectionName: section.name,
-      slides: slides.map((s) => s[song.sourceLang]),
-      chordSlides: slides.map((s) => s.chords?.[song.sourceLang] ?? ""),
-      context: sourceText(song),
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(friendlyError(data.error, res.status));
-  return { translations: data.translations as string[], chords: (data.chords as string[]) ?? [] };
-}
 
 function download(name: string, data: BlobPart, type: string) {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -80,11 +51,9 @@ function Editor() {
   const me = useMe();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [song, setSong] = useState<Song | null>(null);
   const [loadError, setLoadError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [busy, setBusy] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [chordMode, setChordMode] = useState(false);
@@ -93,7 +62,6 @@ function Editor() {
   const [chordPanel, setChordPanel] = useState(false);
   const [pcoPanel, setPcoPanel] = useState(false);
   const [pcoUpdate, setPcoUpdate] = useState(false);
-  const autoTranslated = useRef(false);
   const songRef = useRef<Song | null>(null);
   songRef.current = song;
 
@@ -168,48 +136,7 @@ function Editor() {
 
   const target = song ? otherLang(song.sourceLang) : "es";
 
-  async function translate(section: Section, slides: Slide[]) {
-    if (!song || slides.length === 0) return;
-    const keys = slides.map((s) => s.id);
-    setBusy((b) => new Set([...b, ...keys]));
-    try {
-      const out = await requestTranslation(song, section, slides);
-      const byId = new Map(slides.map((s, i) => [s.id, i]));
-      updateSection(section.id, (s) => ({
-        ...s,
-        slides: s.slides.map((sl) => {
-          const i = byId.get(sl.id);
-          if (i === undefined) return sl;
-          const chords = { ...sl.chords };
-          if (out.chords[i]) chords[target] = out.chords[i];
-          else delete chords[target];
-          return { ...sl, [target]: out.translations[i], chords };
-        }),
-      }));
-    } catch (e) {
-      setMessage((m) => (m ? m + "\n" : "") + `${section.name}: ${(e as Error).message}`);
-    } finally {
-      setBusy((b) => {
-        const n = new Set(b);
-        keys.forEach((k) => n.delete(k));
-        return n;
-      });
-    }
-  }
-
-  async function translateMissing() {
-    setMessage("");
-    const current = songRef.current;
-    if (!current) return;
-    const t = otherLang(current.sourceLang);
-    // One request per section keeps each call short.
-    for (const section of current.sections) {
-      const missing = section.slides.filter((s) => s[current.sourceLang].trim() && !s[t].trim());
-      if (missing.length) await translate(section, missing);
-    }
-  }
-
-  /** Look for an official/published translation on the web before machine-translating. */
+  /** Look for an official/published translation on the web (links to copy from; nothing is translated). */
   async function findTranslation(): Promise<TranslationSearchResult | null> {
     const current = songRef.current;
     if (!current) return null;
@@ -244,18 +171,6 @@ function Editor() {
       setSearching(false);
     }
   }
-
-  useEffect(() => {
-    if (song && canEdit(me) && searchParams.get("translate") === "1" && !autoTranslated.current) {
-      autoTranslated.current = true;
-      router.replace(`/songs/${song.id}`);
-      // Search for an official translation first; machine-translate only if none is found.
-      findTranslation().then((r) => {
-        if (!r?.found) translateMissing();
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song, me]);
 
   async function downloadPro() {
     if (!song) return;
@@ -349,9 +264,11 @@ function Editor() {
             >
               {searching ? "Searching the web…" : "🔎 Find official translation"}
             </button>
-            <button className="btn btn-primary btn-sm" disabled={busy.size > 0 || missingCount === 0} onClick={translateMissing}>
-              {busy.size > 0 ? "Translating…" : `Translate missing (${missingCount})`}
-            </button>
+            {missingCount > 0 && (
+              <span className="rounded-full bg-warning/12 px-2 py-0.5 text-xs font-medium text-warning">
+                {missingCount} slide{missingCount === 1 ? "" : "s"} to translate
+              </span>
+            )}
           </div>
           <SongOrderBar song={song} onChange={(next) => update(() => next)} />
           {pcoUpdate && (
@@ -374,9 +291,7 @@ function Editor() {
             <TranslationSearchPanel
               result={searchResult}
               target={target}
-              translating={busy.size > 0}
               onUseTitle={(t) => update((s) => ({ ...s, translatedTitle: t }))}
-              onTranslateAnyway={translateMissing}
               onClose={() => setSearchResult(null)}
             />
           )}
@@ -434,7 +349,7 @@ function Editor() {
 
           <div className="grid grid-cols-2 gap-3 px-1 text-xs font-medium text-muted">
             <div>{LANG_NAMES[song.sourceLang]} (original)</div>
-            <div>{LANG_NAMES[target]} (AI draft — review for singability)</div>
+            <div>{LANG_NAMES[target]} (translation)</div>
           </div>
 
           {song.sections.map((section) => (
@@ -447,13 +362,6 @@ function Editor() {
                 />
                 <button
                   className="btn btn-sm ml-auto"
-                  disabled={busy.size > 0}
-                  onClick={() => translate(section, section.slides.filter((s) => s[song.sourceLang].trim()))}
-                >
-                  Re-translate section
-                </button>
-                <button
-                  className="btn btn-sm"
                   onClick={() =>
                     confirm(`Remove section “${section.name}”?`) &&
                     update((s) => ({ ...s, sections: s.sections.filter((x) => x.id !== section.id) }))
@@ -479,18 +387,11 @@ function Editor() {
                     <textarea
                       className={`input min-h-[64px] resize-y ${chordMode ? "font-mono text-[13px]" : ""}`}
                       rows={Math.max(2, slide[target].split("\n").length)}
-                      value={busy.has(slide.id) ? "Translating…" : chordMode ? chordedText(slide, target) : slide[target]}
-                      disabled={busy.has(slide.id)}
+                      value={chordMode ? chordedText(slide, target) : slide[target]}
+                      placeholder={slide[song.sourceLang].trim() ? `${LANG_NAMES[target]}…` : ""}
                       onChange={(e) => editSlide(section.id, slide.id, target, e.target.value)}
                     />
                     <div className="flex gap-1">
-                      <button
-                        className="btn btn-sm"
-                        disabled={busy.size > 0 || !slide[song.sourceLang].trim()}
-                        onClick={() => translate(section, [slide])}
-                      >
-                        ↻ Re-translate
-                      </button>
                       <button
                         className="btn btn-sm"
                         onClick={() =>

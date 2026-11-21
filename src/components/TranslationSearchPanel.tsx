@@ -5,12 +5,10 @@ interface Props {
   result: TranslationSearchResult;
   target: Lang;
   onUseTitle: (title: string) => void;
-  onTranslateAnyway: () => void;
   onClose: () => void;
-  translating: boolean;
 }
 
-export default function TranslationSearchPanel({ result, target, onUseTitle, onTranslateAnyway, onClose, translating }: Props) {
+export default function TranslationSearchPanel({ result, target, onUseTitle, onClose }: Props) {
   return (
     <div className={`card space-y-3 p-4 ${result.found ? "border-accent" : ""}`}>
       <div className="flex items-start gap-3">
@@ -51,7 +49,7 @@ export default function TranslationSearchPanel({ result, target, onUseTitle, onT
           covers projecting them.
         </p>
       ) : (
-        <p className="text-sm text-muted">You can have the AI translate it instead.</p>
+        <p className="text-sm text-muted">Type the {LANG_NAMES[target]} lyrics into the {LANG_NAMES[target]} editor.</p>
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -60,9 +58,6 @@ export default function TranslationSearchPanel({ result, target, onUseTitle, onT
             Use “{result.officialTitle}” as the {LANG_NAMES[target]} title
           </button>
         )}
-        <button className={`btn btn-sm ${result.found ? "" : "btn-primary"}`} disabled={translating} onClick={onTranslateAnyway}>
-          {translating ? "Translating…" : result.found ? "Translate with AI anyway" : "Translate with AI"}
-        </button>
       </div>
     </div>
   );
