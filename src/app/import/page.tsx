@@ -273,7 +273,7 @@ export default function ImportPage() {
               </div>
             ))}
             {results.some((r) => r.ok) && (
-              <p className="pt-1 text-xs text-muted">Open a song to add its translation, or use &ldquo;Find official translation&rdquo; to find a published one.</p>
+              <p className="pt-1 text-xs text-muted">Open a song to add its translation.</p>
             )}
           </div>
         )}

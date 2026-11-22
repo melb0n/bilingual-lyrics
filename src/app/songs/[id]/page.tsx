@@ -1,6 +1,5 @@
 "use client";
 
-import { friendlyError } from "@/lib/errors";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -8,14 +7,12 @@ import FullSongEditor from "@/components/FullSongEditor";
 import Header from "@/components/Header";
 import SlidePreview from "@/components/SlidePreview";
 import SongMetaCard from "@/components/SongMetaCard";
-import TranslationSearchPanel from "@/components/TranslationSearchPanel";
 import ChordChartPanel from "@/components/ChordChartPanel";
 import PcoPanel from "@/components/PcoPanel";
 import PcoUpdatePanel from "@/components/PcoUpdatePanel";
 import SongOrderBar from "@/components/SongOrderBar";
 import ReadOnlySong from "@/components/ReadOnlySong";
 import { canEdit, useMe } from "@/lib/useMe";
-import type { TranslationSearchResult } from "@/app/api/find-translation/route";
 import StylePanel from "@/components/StylePanel";
 import { chordedText, hasChords, reconcileChords, stripChords } from "@/lib/chordpro";
 import { LANG_NAMES, newId, otherLang, type Lang, type Section, type Slide, type Song } from "@/lib/types";
@@ -57,8 +54,6 @@ function Editor() {
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [chordMode, setChordMode] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchResult, setSearchResult] = useState<TranslationSearchResult | null>(null);
   const [chordPanel, setChordPanel] = useState(false);
   const [pcoPanel, setPcoPanel] = useState(false);
   const [pcoUpdate, setPcoUpdate] = useState(false);
@@ -135,42 +130,6 @@ function Editor() {
     }));
 
   const target = song ? otherLang(song.sourceLang) : "es";
-
-  /** Look for an official/published translation on the web (links to copy from; nothing is translated). */
-  async function findTranslation(): Promise<TranslationSearchResult | null> {
-    const current = songRef.current;
-    if (!current) return null;
-    setSearching(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/find-translation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: current.title,
-          translatedTitle: current.translatedTitle,
-          artist: current.artist,
-          from: current.sourceLang,
-          to: otherLang(current.sourceLang),
-          firstLines: current.sections
-            .flatMap((s) => s.slides.map((sl) => sl[current.sourceLang]))
-            .join("\n")
-            .split("\n")
-            .slice(0, 6)
-            .join("\n"),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(friendlyError(data.error, res.status));
-      setSearchResult(data as TranslationSearchResult);
-      return data as TranslationSearchResult;
-    } catch (e) {
-      setMessage(`Translation search: ${(e as Error).message}`);
-      return null;
-    } finally {
-      setSearching(false);
-    }
-  }
 
   async function downloadPro() {
     if (!song) return;
@@ -256,14 +215,6 @@ function Editor() {
                 ↻ Update from Planning Center
               </button>
             )}
-            <button
-              className="btn btn-sm"
-              disabled={searching}
-              title="Search the web for an official or widely used translation of this song"
-              onClick={findTranslation}
-            >
-              {searching ? "Searching the web…" : "🔎 Find official translation"}
-            </button>
             {missingCount > 0 && (
               <span className="rounded-full bg-warning/12 px-2 py-0.5 text-xs font-medium text-warning">
                 {missingCount} slide{missingCount === 1 ? "" : "s"} to translate
@@ -285,14 +236,6 @@ function Editor() {
                 setChordMode(true);
               }}
               onClose={() => setChordPanel(false)}
-            />
-          )}
-          {searchResult && (
-            <TranslationSearchPanel
-              result={searchResult}
-              target={target}
-              onUseTitle={(t) => update((s) => ({ ...s, translatedTitle: t }))}
-              onClose={() => setSearchResult(null)}
             />
           )}
           {view === "slides" && chordMode && (

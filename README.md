@@ -15,8 +15,7 @@ This guide is written so another church can set up its own copy from scratch.
   ProPresenter `.pro` or ChordPro file. Title, artist, key, BPM and time signature are read from
   ChordPro tags automatically.
 - Paste both languages at once, or type the translation in yourself (translation is a manual step; the
-  app never machine-translates). **"Find official translation"** can search the web for a published
-  translation of the song (it shows links; it never copies lyrics).
+  app never translates or searches for translations).
 - **Full-song editor**: each language side by side, lined up by section and line, with warnings when
   line counts don't match, "lock chords" to copy chords onto the other language, slide breaks every N
   lines, transpose, and undo. A slide-by-slide view is also available.
@@ -52,7 +51,7 @@ This guide is written so another church can set up its own copy from scratch.
 | **GitHub** | Holds your copy of the code | Free |
 | **Netlify** | Hosts the site and stores songs (Netlify Blobs) | Free plan is usually enough |
 | **Planning Center** (an organization admin) | Sign-in, roles, send/import songs | Free API |
-| **Anthropic** *or* **Google Gemini** | Official-translation search, chord search (optional) | Anthropic: pay as you go (roughly cents per song). Gemini: free tier available |
+| **Anthropic** *or* **Google Gemini** | Chord search (optional) | Anthropic: pay as you go (roughly cents per song). Gemini: free tier available |
 | **ProPresenter 7** | Opening the `.pro` files | — |
 
 ---
@@ -77,8 +76,7 @@ should run its **own** copy, with its own Netlify site and keys.
 1. At **console.anthropic.com**: create an account, add a payment method and **buy credits** under
    **Billing** (requests are refused with a billing error until there is a balance).
 2. Under **Limits**, make sure the monthly spend limit isn't $0.
-3. In the organization's settings, **enable web search and web fetch** (used by "Find official
-   translation" and the chord tools).
+3. In the organization's settings, **enable web search and web fetch** (used by the chord tools).
 4. **API Keys → Create Key → "Continue with an API key"** (identity federation doesn't work on Netlify).
    Copy the key (starts with `sk-ant-`).
 
@@ -174,7 +172,7 @@ Then **Deploys → Trigger deploy → Deploy site** (environment changes only ap
 ## Costs
 - **No AI cost:** editing, chords you paste, transpose, printing, PDFs, `.pro` downloads, sign-in, Team,
   Send / Import / Update with Planning Center.
-- **AI cost** (Anthropic or Gemini), only when used: "Find official translation", "Find chord charts" and
+- **AI cost** (Anthropic or Gemini), only when used: "Find chord charts" and
   "Find & add chords automatically" (each section reads the chart page again). Translating is manual and
   costs nothing.
 - **Netlify:** page and function requests count toward Netlify's plan allowance; normal use is small.
